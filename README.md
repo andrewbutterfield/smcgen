@@ -1,1 +1,2 @@
-# reasonEq
+# Statistical Model Checker Generator
+
