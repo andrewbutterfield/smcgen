@@ -1,0 +1,28 @@
+% lstprism.sty
+%
+% (c) Andrew Butterfield 2018
+%
+\lstdefinelanguage{prism}%
+  {basicstyle=\ttfamily\small\color{blue},
+   identifierstyle=\color{red},
+   morecomment=[l]//,%
+   morecomment=[n]{\{-}{-\}},%
+   commentstyle={\color{green!70!black}},
+   otherkeywords={[],:,->,+,;,||,|||,|[,]|},%
+   keywordstyle=\color{black},
+   keywords={
+      A, bool, clock, const, ctmc, C, double, dtmc, E, endinit, endinvariant,
+      endmodule, endrewards, endsystem, false, formula, filter, func, F, global,
+      G, init, invariant, I, int, label, max, mdp, min, module, X,
+      nondeterministic, Pmax, Pmin, P, probabilistic, prob, pta, rate, rewards,
+      Rmax, Rmin, R, S, stochastic, system, true, U, W
+   },
+   % morekeywords=[2]{},%
+   %keywordstyle=[2]{\color{green!30!black}},
+   classoffset=1,
+   sensitive,%
+   morestring=[b]",
+   showstringspaces=false%
+  }%
+
+\lstnewenvironment{prism}{\lstset{language=prism,frame=lines}} {}

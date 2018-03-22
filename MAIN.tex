@@ -1,0 +1,63 @@
+\documentclass[fleqn,10pt]{report}
+\usepackage[a4paper, margin=1.1in]{geometry}
+\usepackage{amssymb,amsmath}
+\usepackage{mathpartir}
+\usepackage{listings}
+\usepackage{doc/lstlhs}
+\usepackage{doc/lstprism}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\def\includepicture#1{\includegraphics{#1.eps}}
+
+\parindent=0pt % I hate first line indentation
+\parskip=3pt   % I like a visual white gap between paragraphs
+
+\def\reasonEq{\textit{\textsf{reasonEq}}}
+
+\author{
+Andrew Butterfield \and Jim Woodcock
+}
+\title{
+  \texttt{smcgen}:
+  Statistical Model-Checking Generator
+}
+\date{
+\today
+}
+
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\chapter{\texttt{smcgen} Application}
+
+\input{app/Main.lhs}
+
+\chapter{\texttt{smcgen} Libraries}
+
+\input{src/Hack.lhs}
+
+\chapter{\texttt{smcgen} Tests}
+
+\lstinputlisting[language=haskell2010]{test/Spec.hs}
+
+\chapter{Model Files}
+
+\section{Flash Prism Model}
+
+The original model developed by Jim Woodcock and Andrew Butterfield
+in March 2018 in TCD. Here the \texttt{b} parameter was fixed at 3,
+as the number of terms in some commands depend on this value.
+
+\lstinputlisting[language=prism]{models/Flash.prism}
+
+\newpage
+\section{Flash Prism Properties}
+\lstinputlisting{models/Flash.props}
+
+\bibliographystyle{alpha}
+\bibliography{MAIN}
+
+\end{document}

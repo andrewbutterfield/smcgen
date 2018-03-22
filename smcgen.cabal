@@ -1,0 +1,55 @@
+name:                smcgen
+version:             0.1.0.0
+-- synopsis:
+-- description:
+-- homepage:            https://github.com/andrewbutterfield/smcgen#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Andrew Butterfield
+maintainer:          Andrew.Butterfield@scss.tcd.ie
+copyright:           (c) 2018 Andrew Butterfield
+category:            Model Checking
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Hack
+  build-depends:       base >= 4.7 && < 5
+                     -- we need to support internal tests for some modules
+                     , HUnit
+                     -- , QuickCheck
+                     , test-framework
+                     , test-framework-hunit
+                     -- , test-framework-quickcheck2
+  default-language:    Haskell2010
+
+executable smcgen
+  hs-source-dirs:      app
+  main-is:             Main.lhs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , haskeline
+                     , smcgen
+  default-language:    Haskell2010
+
+test-suite smcgentest
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , containers
+                     , smcgen
+                     , HUnit
+                     -- , QuickCheck
+                     , test-framework
+                     , test-framework-hunit
+                     -- , test-framework-quickcheck2
+  other-modules:
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+-- source-repository head
+--   type:     git
+--   location: https://github.com/andrewbutterfield/smcgen
