@@ -9,5 +9,5 @@ module Main where
 import Hack
 
 main :: IO ()
-main = putStrLn hack
+main = hack 3
 \end{code}

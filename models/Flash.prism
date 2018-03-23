@@ -11,7 +11,7 @@ const int MAXDIFF; // Maximum desired difference in wear across blocks.
 const int INIT = 1;    // startup
 const int WRITE = 2;   // page writes
 const int SELECT = 3;  // wear-levelling
-const int FINISH = 4;  // done: mempory full or worn out
+const int FINISH = 4;  // done: memory full or worn out
 
 module Flash
 
@@ -30,17 +30,23 @@ pc: [INIT..FINISH] init INIT;
 // count the number of page writes done since last wear-levelling.
 i: [0..c] init 0;
 
+// Step 1
 [] pc=INIT ->
   (fm_clean_1'=p) & (fm_clean_2'=p) & (fm_clean_3'=p) &
   (fm_erase_1'=0) & (fm_erase_2'=0) & (fm_erase_3'=0) &
   (pc'=WRITE);
+// Step 2
 [] pc=WRITE & i<c & writeable!=0 ->
   (fm_clean_1>0?1/writeable:0): (fm_clean_1'=fm_clean_1-1) & (i'=i+1) +
   (fm_clean_2>0?1/writeable:0): (fm_clean_2'=fm_clean_2-1) & (i'=i+1) +
   (fm_clean_3>0?1/writeable:0): (fm_clean_3'=fm_clean_3-1) & (i'=i+1);
+// Step 3
 [] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
+// Step 4
 [] pc=WRITE & i=c -> (pc'=SELECT);
+// Step 5
 [] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);
+// Step 6
 [] pc=SELECT & candidates!=0 & can_erase ->
   (cand_1_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_1) &
                                  (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
@@ -60,8 +66,8 @@ i: [0..c] init 0;
   (cand_3_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_3) &
                                  (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
                                  (i'=0) & (pc'=WRITE);
+// Step 7
 [] pc=FINISH -> true;
-
 
 endmodule
 

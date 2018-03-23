@@ -11,5 +11,4 @@ main = defaultMain tests
 tests :: [TF.Test]
 tests
  =  [ testCase "1+1=2" (1+1 @?= 2)
-    , testCase "hack" (hack @?= "hacking Flash.prism")
     ]
