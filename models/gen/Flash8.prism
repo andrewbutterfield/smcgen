@@ -86,6 +86,18 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
   (cand_1_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_1) &
                                  (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
                                  (i'=0) & (pc'=WRITE) +
+  (cand_1_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_1_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_1_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_1_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
   (cand_2_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_2) &
                                  (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
                                  (i'=0) & (pc'=WRITE) +
@@ -93,6 +105,18 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
                                  (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
                                  (i'=0) & (pc'=WRITE) +
   (cand_2_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_2) &
                                  (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
                                  (i'=0) & (pc'=WRITE) +
   (cand_3_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_3) &
@@ -104,6 +128,18 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
   (cand_3_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_3) &
                                  (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
                                  (i'=0) & (pc'=WRITE) +
+  (cand_3_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
   (cand_4_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_4) &
                                  (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
                                  (i'=0) & (pc'=WRITE) +
@@ -113,6 +149,102 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
   (cand_4_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_4) &
                                  (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
                                  (i'=0) & (pc'=WRITE) +
+  (cand_4_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_4) &
+                                 (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_4_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_4) &
+                                 (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_4_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_4) &
+                                 (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_4_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_4) &
+                                 (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_6_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_6) &
+                                 (fm_clean_6'=p) & (fm_erase_6'=fm_erase_6+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_7_8 ? 1/candidates : 0): (fm_clean_8'=fm_clean_8-dirty_7) &
+                                 (fm_clean_7'=p) & (fm_erase_7'=fm_erase_7+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_6 ? 1/candidates : 0): (fm_clean_6'=fm_clean_6-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_8_7 ? 1/candidates : 0): (fm_clean_7'=fm_clean_7-dirty_8) &
+                                 (fm_clean_8'=p) & (fm_erase_8'=fm_erase_8+1) &
+                                 (i'=0) & (pc'=WRITE);
 
 // Step 7
 [] pc=FINISH -> true;
@@ -146,15 +278,59 @@ formula dirty_8 = p-fm_clean_8;
 formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
 formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
 formula cand_1_4 = dirty_1>0 & fm_clean_4 >= dirty_1;
+formula cand_1_5 = dirty_1>0 & fm_clean_5 >= dirty_1;
+formula cand_1_6 = dirty_1>0 & fm_clean_6 >= dirty_1;
+formula cand_1_7 = dirty_1>0 & fm_clean_7 >= dirty_1;
+formula cand_1_8 = dirty_1>0 & fm_clean_8 >= dirty_1;
 formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
 formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
 formula cand_2_4 = dirty_2>0 & fm_clean_4 >= dirty_2;
+formula cand_2_5 = dirty_2>0 & fm_clean_5 >= dirty_2;
+formula cand_2_6 = dirty_2>0 & fm_clean_6 >= dirty_2;
+formula cand_2_7 = dirty_2>0 & fm_clean_7 >= dirty_2;
+formula cand_2_8 = dirty_2>0 & fm_clean_8 >= dirty_2;
 formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
 formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
 formula cand_3_4 = dirty_3>0 & fm_clean_4 >= dirty_3;
+formula cand_3_5 = dirty_3>0 & fm_clean_5 >= dirty_3;
+formula cand_3_6 = dirty_3>0 & fm_clean_6 >= dirty_3;
+formula cand_3_7 = dirty_3>0 & fm_clean_7 >= dirty_3;
+formula cand_3_8 = dirty_3>0 & fm_clean_8 >= dirty_3;
 formula cand_4_1 = dirty_4>0 & fm_clean_1 >= dirty_4;
 formula cand_4_2 = dirty_4>0 & fm_clean_2 >= dirty_4;
 formula cand_4_3 = dirty_4>0 & fm_clean_3 >= dirty_4;
+formula cand_4_5 = dirty_4>0 & fm_clean_5 >= dirty_4;
+formula cand_4_6 = dirty_4>0 & fm_clean_6 >= dirty_4;
+formula cand_4_7 = dirty_4>0 & fm_clean_7 >= dirty_4;
+formula cand_4_8 = dirty_4>0 & fm_clean_8 >= dirty_4;
+formula cand_5_1 = dirty_5>0 & fm_clean_1 >= dirty_5;
+formula cand_5_2 = dirty_5>0 & fm_clean_2 >= dirty_5;
+formula cand_5_3 = dirty_5>0 & fm_clean_3 >= dirty_5;
+formula cand_5_4 = dirty_5>0 & fm_clean_4 >= dirty_5;
+formula cand_5_6 = dirty_5>0 & fm_clean_6 >= dirty_5;
+formula cand_5_7 = dirty_5>0 & fm_clean_7 >= dirty_5;
+formula cand_5_8 = dirty_5>0 & fm_clean_8 >= dirty_5;
+formula cand_6_1 = dirty_6>0 & fm_clean_1 >= dirty_6;
+formula cand_6_2 = dirty_6>0 & fm_clean_2 >= dirty_6;
+formula cand_6_3 = dirty_6>0 & fm_clean_3 >= dirty_6;
+formula cand_6_4 = dirty_6>0 & fm_clean_4 >= dirty_6;
+formula cand_6_5 = dirty_6>0 & fm_clean_5 >= dirty_6;
+formula cand_6_7 = dirty_6>0 & fm_clean_7 >= dirty_6;
+formula cand_6_8 = dirty_6>0 & fm_clean_8 >= dirty_6;
+formula cand_7_1 = dirty_7>0 & fm_clean_1 >= dirty_7;
+formula cand_7_2 = dirty_7>0 & fm_clean_2 >= dirty_7;
+formula cand_7_3 = dirty_7>0 & fm_clean_3 >= dirty_7;
+formula cand_7_4 = dirty_7>0 & fm_clean_4 >= dirty_7;
+formula cand_7_5 = dirty_7>0 & fm_clean_5 >= dirty_7;
+formula cand_7_6 = dirty_7>0 & fm_clean_6 >= dirty_7;
+formula cand_7_8 = dirty_7>0 & fm_clean_8 >= dirty_7;
+formula cand_8_1 = dirty_8>0 & fm_clean_1 >= dirty_8;
+formula cand_8_2 = dirty_8>0 & fm_clean_2 >= dirty_8;
+formula cand_8_3 = dirty_8>0 & fm_clean_3 >= dirty_8;
+formula cand_8_4 = dirty_8>0 & fm_clean_4 >= dirty_8;
+formula cand_8_5 = dirty_8>0 & fm_clean_5 >= dirty_8;
+formula cand_8_6 = dirty_8>0 & fm_clean_6 >= dirty_8;
+formula cand_8_7 = dirty_8>0 & fm_clean_7 >= dirty_8;
 
 // the number of ways in which we can relocate dirty pages from one block
 // to another so we can erase (clean) the first block.
@@ -162,15 +338,59 @@ formula candidates =
   (cand_1_2?1:0) +
   (cand_1_3?1:0) +
   (cand_1_4?1:0) +
+  (cand_1_5?1:0) +
+  (cand_1_6?1:0) +
+  (cand_1_7?1:0) +
+  (cand_1_8?1:0) +
   (cand_2_1?1:0) +
   (cand_2_3?1:0) +
   (cand_2_4?1:0) +
+  (cand_2_5?1:0) +
+  (cand_2_6?1:0) +
+  (cand_2_7?1:0) +
+  (cand_2_8?1:0) +
   (cand_3_1?1:0) +
   (cand_3_2?1:0) +
   (cand_3_4?1:0) +
+  (cand_3_5?1:0) +
+  (cand_3_6?1:0) +
+  (cand_3_7?1:0) +
+  (cand_3_8?1:0) +
   (cand_4_1?1:0) +
   (cand_4_2?1:0) +
   (cand_4_3?1:0) +
+  (cand_4_5?1:0) +
+  (cand_4_6?1:0) +
+  (cand_4_7?1:0) +
+  (cand_4_8?1:0) +
+  (cand_5_1?1:0) +
+  (cand_5_2?1:0) +
+  (cand_5_3?1:0) +
+  (cand_5_4?1:0) +
+  (cand_5_6?1:0) +
+  (cand_5_7?1:0) +
+  (cand_5_8?1:0) +
+  (cand_6_1?1:0) +
+  (cand_6_2?1:0) +
+  (cand_6_3?1:0) +
+  (cand_6_4?1:0) +
+  (cand_6_5?1:0) +
+  (cand_6_7?1:0) +
+  (cand_6_8?1:0) +
+  (cand_7_1?1:0) +
+  (cand_7_2?1:0) +
+  (cand_7_3?1:0) +
+  (cand_7_4?1:0) +
+  (cand_7_5?1:0) +
+  (cand_7_6?1:0) +
+  (cand_7_8?1:0) +
+  (cand_8_1?1:0) +
+  (cand_8_2?1:0) +
+  (cand_8_3?1:0) +
+  (cand_8_4?1:0) +
+  (cand_8_5?1:0) +
+  (cand_8_6?1:0) +
+  (cand_8_7?1:0);
 
 // true when it is still possibe to erase ANY block,
 // without exceeding the maximum allowable erase operations.
@@ -189,27 +409,115 @@ formula can_erase =
 formula diff_1_2 = fm_erase_1-fm_erase_2;
 formula diff_1_3 = fm_erase_1-fm_erase_3;
 formula diff_1_4 = fm_erase_1-fm_erase_4;
+formula diff_1_5 = fm_erase_1-fm_erase_5;
+formula diff_1_6 = fm_erase_1-fm_erase_6;
+formula diff_1_7 = fm_erase_1-fm_erase_7;
+formula diff_1_8 = fm_erase_1-fm_erase_8;
 formula diff_2_1 = fm_erase_2-fm_erase_1;
 formula diff_2_3 = fm_erase_2-fm_erase_3;
 formula diff_2_4 = fm_erase_2-fm_erase_4;
+formula diff_2_5 = fm_erase_2-fm_erase_5;
+formula diff_2_6 = fm_erase_2-fm_erase_6;
+formula diff_2_7 = fm_erase_2-fm_erase_7;
+formula diff_2_8 = fm_erase_2-fm_erase_8;
 formula diff_3_1 = fm_erase_3-fm_erase_1;
 formula diff_3_2 = fm_erase_3-fm_erase_2;
 formula diff_3_4 = fm_erase_3-fm_erase_4;
+formula diff_3_5 = fm_erase_3-fm_erase_5;
+formula diff_3_6 = fm_erase_3-fm_erase_6;
+formula diff_3_7 = fm_erase_3-fm_erase_7;
+formula diff_3_8 = fm_erase_3-fm_erase_8;
 formula diff_4_1 = fm_erase_4-fm_erase_1;
 formula diff_4_2 = fm_erase_4-fm_erase_2;
 formula diff_4_3 = fm_erase_4-fm_erase_3;
+formula diff_4_5 = fm_erase_4-fm_erase_5;
+formula diff_4_6 = fm_erase_4-fm_erase_6;
+formula diff_4_7 = fm_erase_4-fm_erase_7;
+formula diff_4_8 = fm_erase_4-fm_erase_8;
+formula diff_5_1 = fm_erase_5-fm_erase_1;
+formula diff_5_2 = fm_erase_5-fm_erase_2;
+formula diff_5_3 = fm_erase_5-fm_erase_3;
+formula diff_5_4 = fm_erase_5-fm_erase_4;
+formula diff_5_6 = fm_erase_5-fm_erase_6;
+formula diff_5_7 = fm_erase_5-fm_erase_7;
+formula diff_5_8 = fm_erase_5-fm_erase_8;
+formula diff_6_1 = fm_erase_6-fm_erase_1;
+formula diff_6_2 = fm_erase_6-fm_erase_2;
+formula diff_6_3 = fm_erase_6-fm_erase_3;
+formula diff_6_4 = fm_erase_6-fm_erase_4;
+formula diff_6_5 = fm_erase_6-fm_erase_5;
+formula diff_6_7 = fm_erase_6-fm_erase_7;
+formula diff_6_8 = fm_erase_6-fm_erase_8;
+formula diff_7_1 = fm_erase_7-fm_erase_1;
+formula diff_7_2 = fm_erase_7-fm_erase_2;
+formula diff_7_3 = fm_erase_7-fm_erase_3;
+formula diff_7_4 = fm_erase_7-fm_erase_4;
+formula diff_7_5 = fm_erase_7-fm_erase_5;
+formula diff_7_6 = fm_erase_7-fm_erase_6;
+formula diff_7_8 = fm_erase_7-fm_erase_8;
+formula diff_8_1 = fm_erase_8-fm_erase_1;
+formula diff_8_2 = fm_erase_8-fm_erase_2;
+formula diff_8_3 = fm_erase_8-fm_erase_3;
+formula diff_8_4 = fm_erase_8-fm_erase_4;
+formula diff_8_5 = fm_erase_8-fm_erase_5;
+formula diff_8_6 = fm_erase_8-fm_erase_6;
+formula diff_8_7 = fm_erase_8-fm_erase_7;
 
 // true if difference in wear equals some limit.
 formula toobig =
   diff_1_2 >= MAXDIFF |
   diff_1_3 >= MAXDIFF |
   diff_1_4 >= MAXDIFF |
+  diff_1_5 >= MAXDIFF |
+  diff_1_6 >= MAXDIFF |
+  diff_1_7 >= MAXDIFF |
+  diff_1_8 >= MAXDIFF |
   diff_2_1 >= MAXDIFF |
   diff_2_3 >= MAXDIFF |
   diff_2_4 >= MAXDIFF |
+  diff_2_5 >= MAXDIFF |
+  diff_2_6 >= MAXDIFF |
+  diff_2_7 >= MAXDIFF |
+  diff_2_8 >= MAXDIFF |
   diff_3_1 >= MAXDIFF |
   diff_3_2 >= MAXDIFF |
   diff_3_4 >= MAXDIFF |
+  diff_3_5 >= MAXDIFF |
+  diff_3_6 >= MAXDIFF |
+  diff_3_7 >= MAXDIFF |
+  diff_3_8 >= MAXDIFF |
   diff_4_1 >= MAXDIFF |
   diff_4_2 >= MAXDIFF |
   diff_4_3 >= MAXDIFF |
+  diff_4_5 >= MAXDIFF |
+  diff_4_6 >= MAXDIFF |
+  diff_4_7 >= MAXDIFF |
+  diff_4_8 >= MAXDIFF |
+  diff_5_1 >= MAXDIFF |
+  diff_5_2 >= MAXDIFF |
+  diff_5_3 >= MAXDIFF |
+  diff_5_4 >= MAXDIFF |
+  diff_5_6 >= MAXDIFF |
+  diff_5_7 >= MAXDIFF |
+  diff_5_8 >= MAXDIFF |
+  diff_6_1 >= MAXDIFF |
+  diff_6_2 >= MAXDIFF |
+  diff_6_3 >= MAXDIFF |
+  diff_6_4 >= MAXDIFF |
+  diff_6_5 >= MAXDIFF |
+  diff_6_7 >= MAXDIFF |
+  diff_6_8 >= MAXDIFF |
+  diff_7_1 >= MAXDIFF |
+  diff_7_2 >= MAXDIFF |
+  diff_7_3 >= MAXDIFF |
+  diff_7_4 >= MAXDIFF |
+  diff_7_5 >= MAXDIFF |
+  diff_7_6 >= MAXDIFF |
+  diff_7_8 >= MAXDIFF |
+  diff_8_1 >= MAXDIFF |
+  diff_8_2 >= MAXDIFF |
+  diff_8_3 >= MAXDIFF |
+  diff_8_4 >= MAXDIFF |
+  diff_8_5 >= MAXDIFF |
+  diff_8_6 >= MAXDIFF |
+  diff_8_7 >= MAXDIFF;

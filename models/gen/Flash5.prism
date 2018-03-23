@@ -71,6 +71,9 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
   (cand_1_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_1) &
                                  (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
                                  (i'=0) & (pc'=WRITE) +
+  (cand_1_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
   (cand_2_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_2) &
                                  (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
                                  (i'=0) & (pc'=WRITE) +
@@ -78,6 +81,9 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
                                  (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
                                  (i'=0) & (pc'=WRITE) +
   (cand_2_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_2) &
                                  (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
                                  (i'=0) & (pc'=WRITE) +
   (cand_3_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_3) &
@@ -89,6 +95,9 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
   (cand_3_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_3) &
                                  (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
                                  (i'=0) & (pc'=WRITE) +
+  (cand_3_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
   (cand_4_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_4) &
                                  (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
                                  (i'=0) & (pc'=WRITE) +
@@ -98,6 +107,21 @@ i: [0..c] init 0; // number of writes done since last wear-levelling.
   (cand_4_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_4) &
                                  (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
                                  (i'=0) & (pc'=WRITE) +
+  (cand_4_5 ? 1/candidates : 0): (fm_clean_5'=fm_clean_5-dirty_4) &
+                                 (fm_clean_4'=p) & (fm_erase_4'=fm_erase_4+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_5_4 ? 1/candidates : 0): (fm_clean_4'=fm_clean_4-dirty_5) &
+                                 (fm_clean_5'=p) & (fm_erase_5'=fm_erase_5+1) &
+                                 (i'=0) & (pc'=WRITE);
 
 // Step 7
 [] pc=FINISH -> true;
@@ -125,15 +149,23 @@ formula dirty_5 = p-fm_clean_5;
 formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
 formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
 formula cand_1_4 = dirty_1>0 & fm_clean_4 >= dirty_1;
+formula cand_1_5 = dirty_1>0 & fm_clean_5 >= dirty_1;
 formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
 formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
 formula cand_2_4 = dirty_2>0 & fm_clean_4 >= dirty_2;
+formula cand_2_5 = dirty_2>0 & fm_clean_5 >= dirty_2;
 formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
 formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
 formula cand_3_4 = dirty_3>0 & fm_clean_4 >= dirty_3;
+formula cand_3_5 = dirty_3>0 & fm_clean_5 >= dirty_3;
 formula cand_4_1 = dirty_4>0 & fm_clean_1 >= dirty_4;
 formula cand_4_2 = dirty_4>0 & fm_clean_2 >= dirty_4;
 formula cand_4_3 = dirty_4>0 & fm_clean_3 >= dirty_4;
+formula cand_4_5 = dirty_4>0 & fm_clean_5 >= dirty_4;
+formula cand_5_1 = dirty_5>0 & fm_clean_1 >= dirty_5;
+formula cand_5_2 = dirty_5>0 & fm_clean_2 >= dirty_5;
+formula cand_5_3 = dirty_5>0 & fm_clean_3 >= dirty_5;
+formula cand_5_4 = dirty_5>0 & fm_clean_4 >= dirty_5;
 
 // the number of ways in which we can relocate dirty pages from one block
 // to another so we can erase (clean) the first block.
@@ -141,15 +173,23 @@ formula candidates =
   (cand_1_2?1:0) +
   (cand_1_3?1:0) +
   (cand_1_4?1:0) +
+  (cand_1_5?1:0) +
   (cand_2_1?1:0) +
   (cand_2_3?1:0) +
   (cand_2_4?1:0) +
+  (cand_2_5?1:0) +
   (cand_3_1?1:0) +
   (cand_3_2?1:0) +
   (cand_3_4?1:0) +
+  (cand_3_5?1:0) +
   (cand_4_1?1:0) +
   (cand_4_2?1:0) +
   (cand_4_3?1:0) +
+  (cand_4_5?1:0) +
+  (cand_5_1?1:0) +
+  (cand_5_2?1:0) +
+  (cand_5_3?1:0) +
+  (cand_5_4?1:0);
 
 // true when it is still possibe to erase ANY block,
 // without exceeding the maximum allowable erase operations.
@@ -165,27 +205,43 @@ formula can_erase =
 formula diff_1_2 = fm_erase_1-fm_erase_2;
 formula diff_1_3 = fm_erase_1-fm_erase_3;
 formula diff_1_4 = fm_erase_1-fm_erase_4;
+formula diff_1_5 = fm_erase_1-fm_erase_5;
 formula diff_2_1 = fm_erase_2-fm_erase_1;
 formula diff_2_3 = fm_erase_2-fm_erase_3;
 formula diff_2_4 = fm_erase_2-fm_erase_4;
+formula diff_2_5 = fm_erase_2-fm_erase_5;
 formula diff_3_1 = fm_erase_3-fm_erase_1;
 formula diff_3_2 = fm_erase_3-fm_erase_2;
 formula diff_3_4 = fm_erase_3-fm_erase_4;
+formula diff_3_5 = fm_erase_3-fm_erase_5;
 formula diff_4_1 = fm_erase_4-fm_erase_1;
 formula diff_4_2 = fm_erase_4-fm_erase_2;
 formula diff_4_3 = fm_erase_4-fm_erase_3;
+formula diff_4_5 = fm_erase_4-fm_erase_5;
+formula diff_5_1 = fm_erase_5-fm_erase_1;
+formula diff_5_2 = fm_erase_5-fm_erase_2;
+formula diff_5_3 = fm_erase_5-fm_erase_3;
+formula diff_5_4 = fm_erase_5-fm_erase_4;
 
 // true if difference in wear equals some limit.
 formula toobig =
   diff_1_2 >= MAXDIFF |
   diff_1_3 >= MAXDIFF |
   diff_1_4 >= MAXDIFF |
+  diff_1_5 >= MAXDIFF |
   diff_2_1 >= MAXDIFF |
   diff_2_3 >= MAXDIFF |
   diff_2_4 >= MAXDIFF |
+  diff_2_5 >= MAXDIFF |
   diff_3_1 >= MAXDIFF |
   diff_3_2 >= MAXDIFF |
   diff_3_4 >= MAXDIFF |
+  diff_3_5 >= MAXDIFF |
   diff_4_1 >= MAXDIFF |
   diff_4_2 >= MAXDIFF |
   diff_4_3 >= MAXDIFF |
+  diff_4_5 >= MAXDIFF |
+  diff_5_1 >= MAXDIFF |
+  diff_5_2 >= MAXDIFF |
+  diff_5_3 >= MAXDIFF |
+  diff_5_4 >= MAXDIFF;
