@@ -14,7 +14,7 @@ from having parameter \texttt{b} fixed equal to 3.
 \begin{code}
 hack b
  | b < 2 = putStrLn "smcgen with b less than two is somewhat pointless"
- | otherwise = writeFile ("Flash"++show b++".prism") $ prismcode b
+ | otherwise = writeFile ("models/gen/Flash"++show b++".prism") $ prismcode b
 
 prismcode b
  = unlines $ intercalate [""]
@@ -224,7 +224,15 @@ step5
 step6 b
   =    "// Step 6"
     :  "[] pc=SELECT & candidates!=0 & can_erase ->"
-    : (concat $ map (ierase (3,2)) [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)])
+    : (concat $ map (ierase $ lst b) $ tuples b)
+
+tuples 2 = [(1,2),(2,1)]
+tuples 3 = [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+tuples 4 = [(1,2),(1,3),(1,4),(2,1),(2,3),(2,4)
+           ,(3,1),(3,2),(3,4),(4,1),(4,2),(4,3)]
+tuples n = tuples 4
+
+lst n = (n,n-1)
 
 ierase last curr@(from,to)
   = [    "  (cand_"++show from++"_"++show to
@@ -312,7 +320,7 @@ formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
 cand b
   =    ( "// cand_i_j, for i,j in 1.."++show b++", i /= j" )
     :  "//  block i is dirty but there is space in block j for its pages"
-    : map icand [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+    : ( map icand $ tuples b)
 
 icand (from,to)
  =    "formula cand_"++show from++"_"++show to
@@ -334,7 +342,7 @@ candidates b
   =  "// the number of ways in which we can relocate dirty pages from one block"
    : "// to another so we can erase (clean) the first block."
    : "formula candidates ="
-   : map (icandidate (3,2)) [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+   : ( map (icandidate $ lst b) $ tuples b )
 
 icandidate last curr@(from,to)
   =  "  (cand_"++show from++"_"++show to++"?1:0)" ++ addend last curr
@@ -378,7 +386,7 @@ formula diff_3_2 = fm_erase_3-fm_erase_2;
 diff b
   =  ( "// diff_i_j, for i,j in 1.."++show b++", i /= j" )
    : "// the difference in number of erasure of blocks i and j"
-   : map idiff [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+   : ( map idiff $ tuples b )
 
 idiff (i,j)
   =    "formula diff_"++show i++"_"++show j
@@ -401,7 +409,7 @@ formula toobig =
 toobig b
   =   "// true if difference in wear equals some limit."
     : "formula toobig ="
-    : map (itoobig (3,2)) [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+    : ( map (itoobig $ lst b) $ tuples b )
 
 itoobig last curr@(i,j)
   = "  diff_"++show i++"_"++show j++" >= MAXDIFF" ++ orend last curr

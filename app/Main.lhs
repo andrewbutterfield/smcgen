@@ -9,5 +9,5 @@ module Main where
 import Hack
 
 main :: IO ()
-main = hack 3
+main = sequence_ $ map hack [2..8]
 \end{code}
