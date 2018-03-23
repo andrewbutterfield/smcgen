@@ -5,8 +5,8 @@ Copyright  Andrew Buttefield (c) 2018
 LICENSE: BSD3, see file LICENSE at smcgen root
 \end{verbatim}
 \begin{code}
-module Hack
-where
+module Hack where
+import Data.List
 \end{code}
 
 Currently we are hacking ways to generalise \texttt{Flash.prism}
@@ -17,22 +17,25 @@ hack b
  | otherwise = writeFile ("Flash"++show b++".prism") $ prismcode b
 
 prismcode b
- = unlines $ concat
+ = unlines $ intercalate [""]
      [ sem, params b, control
      , mdl b, vars b
      , step1 b, step2 b, step3, step4, step5, step6 b, step7, endm
      , writeable b, dirty b
      , cand b, candidates b, can_erase b
-     , diff b, toobig b]
+     , diff b, toobig b ]
 \end{code}
+
+
 
 \begin{prism}
 dtmc
-
 \end{prism}
 \begin{code}
-sem = ["dtmc",""]
+sem = ["dtmc"]
 \end{code}
+
+
 
 \begin{prism}
 const int b=3; // Block Count: Our problematic parameter
@@ -48,9 +51,10 @@ params b
     , "const int c; // Number of page writes between wear levelling"
     , "const int w; // Maximum wear tolerance (no. of erasures)"
     , "const int MAXDIFF; // Maximum desired difference in wear across blocks."
-    , ""
   ]
 \end{code}
+
+
 
 \begin{prism}
 // control flow
@@ -66,16 +70,19 @@ control
     , "const int WRITE = 2;   // page writes"
     , "const int SELECT = 3;  // wear-levelling"
     , "const int FINISH = 4;  // done: memory full or worn out"
-    , ""
-  ]
+    ]
 \end{code}
+
+
 
 \begin{prism}
 module Flash
 \end{prism}
 \begin{code}
-mdl b = [ "module Flash"++show b, "" ]
+mdl b = [ "module Flash"++show b ]
 \end{code}
+
+
 
 \begin{prism}
 // fm_clean_i, for i in 1..b - the number of clean pages in block i
@@ -90,8 +97,22 @@ pc: [INIT..FINISH] init INIT; // program counter
 i: [0..c] init 0; // number of page writes done since last wear-levelling.
 \end{prism}
 \begin{code}
-vars b = [ "vars "++show b++" NYI" ]
+vars :: Int -> [String]
+vars b
+  = ( ("// fm_clean_i, for i in 1.."++show b++" - no of clean pages in block i")
+    : map (idecl "fm_clean_" ": [0..p]") [1..b] )
+    ++
+    ( ("// fm_erase_i, i in 1.."++show b++", no of times block i has been erased.")
+    : map (idecl "fm_erase_" ":[0..w]") [1..b] )
+    ++
+    [ "pc: [INIT..FINISH] init INIT; // program counter"
+    , "i: [0..c] init 0; // number of writes done since last wear-levelling."
+    ]
+
+idecl root typ i = root ++ show i ++ typ
 \end{code}
+
+
 
 \begin{prism}
 // Step 1
@@ -101,8 +122,17 @@ vars b = [ "vars "++show b++" NYI" ]
   (pc'=WRITE);
 \end{prism}
 \begin{code}
-step1 b = [ "step1 "++show b++" NYI" ]
+step1 b
+  =    "// Step 1"
+    :  "[] pc=INIT ->"
+    :  (map (iinit "  (fm_clean_" "'=p) &") [1..b])
+    ++ (map (iinit "  (fm_erase_" "'=p) &") [1..b])
+    ++ [ "  (pc'=WRITE);" ]
+
+iinit root val i = root ++ show i ++ val
 \end{code}
+
+
 
 \begin{prism}
 // Step 2
@@ -112,8 +142,22 @@ step1 b = [ "step1 "++show b++" NYI" ]
   (fm_clean_3>0?1/writeable:0): (fm_clean_3'=fm_clean_3-1) & (i'=i+1);
 \end{prism}
 \begin{code}
-step2 b = [ "step2 "++show b++" NYI" ]
+step2 b
+  =    "// Step 2"
+    : "[] pc=WRITE & i<c & writeable!=0 ->"
+    : map (iwrite b) [1..b]
+
+iwrite b i
+  =     "  (fm_clean_"++show b
+     ++ "1>0?1/writeable:0): (fm_clean_"++show b
+     ++ "1'=fm_clean_"++show b
+     ++ "1-1) & (i'=i+1)"
+     ++ addend b i
+
+addend b i = if i == b then ";" else " +"
 \end{code}
+
+
 
 \begin{prism}
 // Step 3
@@ -126,6 +170,8 @@ step3
     ]
 \end{code}
 
+
+
 \begin{prism}
 // Step 4
 [] pc=WRITE & i=c -> (pc'=SELECT);
@@ -137,6 +183,8 @@ step4
     ]
 \end{code}
 
+
+
 \begin{prism}
 // Step 5
 [] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);
@@ -147,6 +195,8 @@ step5
     , "[] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);"
     ]
 \end{code}
+
+
 
 \begin{prism}
 // Step 6
@@ -171,8 +221,23 @@ step5
                                  (i'=0) & (pc'=WRITE);
 \end{prism}
 \begin{code}
-step6 b = [ "step6 "++show b++" NYI" ]
+step6 b
+  =    "// Step 6"
+    :  "[] pc=SELECT & candidates!=0 & can_erase ->"
+    : (concat $ map (ierase (3,2)) [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)])
+
+ierase last curr@(from,to)
+  = [    "  (cand_"++show from++"_"++show to
+      ++ " ? 1/candidates : 0): (fm_clean_"++show to
+      ++ "'=fm_clean_"++show to++"-dirty_"++show from++") &"
+    ,    "                                 (fm_clean_"++show from
+      ++ "'=p) & (fm_erase_"++show from++"'=fm_erase_"++show from++"+1) &"
+    ,    "                                 (i'=0) & (pc'=WRITE)" 
+      ++ addend last curr
+    ]
 \end{code}
+
+
 
 \begin{prism}
 // Step 7
@@ -185,12 +250,16 @@ step7
     ]
 \end{code}
 
+
+
 \begin{prism}
 endmodule
 \end{prism}
 \begin{code}
-endm = [ "", "endmodule", "" ]
+endm = [ "endmodule" ]
 \end{code}
+
+
 
 \begin{prism}
 // a block is writeable if it has at least one clean page
@@ -203,8 +272,10 @@ writeable b
   = [ "// a block is writeable if it has at least one clean page"
     , "// We need to know how many of these there are."
     , "writeable "++show b++" NYFI"
-    , "" ]
+    ]
 \end{code}
+
+
 
 \begin{prism}
 // dirty_i, for i in 1..b - number of dirty pages in block i
@@ -216,8 +287,10 @@ formula dirty_3 = p-fm_clean_3;
 dirty b
   = [ "// dirty_i, for i in 1.."++show b++" - number of dirty pages in block i"
     , "dirty "++show b++" NYFI"
-    , ""]
+    ]
 \end{code}
+
+
 
 \begin{prism}
 // cand_i_j, for i,j in 1..b, i /= j
@@ -234,8 +307,10 @@ cand b
   = [ "// cand_i_j, for i,j in 1..b, i /= j"
     , "//  block i is dirty but there is space in block j for its pages"
     , "cand "++show b++" NYFI"
-    ,"" ]
+    ]
 \end{code}
+
+
 
 \begin{prism}
 // the number of ways in which we can relocate dirty pages from one block
@@ -249,8 +324,10 @@ candidates b
   = [ "// the number of ways in which we can relocate dirty pages from one block"
     , "// to another so we can erase (clean) the first block."
     , "candidates "++show b++" NYFI"
-    , "" ]
+     ]
 \end{code}
+
+
 
 \begin{prism}
 // true when it is still possibe to erase ANY block,
@@ -262,8 +339,10 @@ can_erase b
   = [ "// true when it is still possibe to erase ANY block,"
     , "// without exceeding the maximum allowable erase operations."
     , "can_erase "++show b++" NYFI"
-    , "" ]
+     ]
 \end{code}
+
+
 
 \begin{prism}
 // diff_i_j, for i,j in 1..b, i /= j
@@ -280,8 +359,10 @@ diff b
   = [ "// diff_i_j, for i,j in 1.."++show b++", i /= j"
     , "// the difference in number of erasure of blocks i and j"
     , "diff "++show b++" NYFI"
-    , "" ]
+     ]
 \end{code}
+
+
 
 \begin{prism}
 // true if difference in wear equals some limit.
@@ -297,5 +378,5 @@ formula toobig =
 toobig b
   = [ "// true if difference in wear equals some limit."
     , "toobig "++show b++" NYFI"
-    , "" ]
+     ]
 \end{code}
