@@ -100,10 +100,10 @@ i: [0..c] init 0; // number of page writes done since last wear-levelling.
 vars :: Int -> [String]
 vars b
   = ( ("// fm_clean_i, for i in 1.."++show b++" - no of clean pages in block i")
-    : map (idecl "fm_clean_" ": [0..p]") [1..b] )
+    : map (idecl "fm_clean_" ": [0..p];") [1..b] )
     ++
     ( ("// fm_erase_i, i in 1.."++show b++", no of times block i has been erased.")
-    : map (idecl "fm_erase_" ":[0..w]") [1..b] )
+    : map (idecl "fm_erase_" ":[0..w];") [1..b] )
     ++
     [ "pc: [INIT..FINISH] init INIT; // program counter"
     , "i: [0..c] init 0; // number of writes done since last wear-levelling."
@@ -148,10 +148,10 @@ step2 b
     : map (iwrite b) [1..b]
 
 iwrite b i
-  =     "  (fm_clean_"++show b
-     ++ "1>0?1/writeable:0): (fm_clean_"++show b
-     ++ "1'=fm_clean_"++show b
-     ++ "1-1) & (i'=i+1)"
+  =     "  (fm_clean_"++show i
+     ++ ">0?1/writeable:0): (fm_clean_"++show i
+     ++ "'=fm_clean_"++show i
+     ++ "-1) & (i'=i+1)"
      ++ addend b i
 
 addend b i = if i == b then ";" else " +"
@@ -232,7 +232,7 @@ ierase last curr@(from,to)
       ++ "'=fm_clean_"++show to++"-dirty_"++show from++") &"
     ,    "                                 (fm_clean_"++show from
       ++ "'=p) & (fm_erase_"++show from++"'=fm_erase_"++show from++"+1) &"
-    ,    "                                 (i'=0) & (pc'=WRITE)" 
+    ,    "                                 (i'=0) & (pc'=WRITE)"
       ++ addend last curr
     ]
 \end{code}
@@ -264,15 +264,19 @@ endm = [ "endmodule" ]
 \begin{prism}
 // a block is writeable if it has at least one clean page
 // We need to know how many of these there are.
-formula writeable = (fm_clean_1!=0 ? 1 : 0) +  (fm_clean_2!=0 ? 1 : 0)
-                  + (fm_clean_3!=0 ? 1 : 0);
+formula writeable =
+  (fm_clean_1!=0 ? 1 : 0) +
+  (fm_clean_2!=0 ? 1 : 0) +
+  (fm_clean_3!=0 ? 1 : 0);
 \end{prism}
 \begin{code}
 writeable b
-  = [ "// a block is writeable if it has at least one clean page"
-    , "// We need to know how many of these there are."
-    , "writeable "++show b++" NYFI"
-    ]
+  =   "// a block is writeable if it has at least one clean page"
+    : "// We need to know how many of these there are."
+    : "formula writeable ="
+    : map (iwriteable b) [1..b]
+
+iwriteable b i = "  (fm_clean_"++show i++"!=0 ? 1 : 0)" ++ addend b i
 \end{code}
 
 
@@ -285,9 +289,11 @@ formula dirty_3 = p-fm_clean_3;
 \end{prism}
 \begin{code}
 dirty b
-  = [ "// dirty_i, for i in 1.."++show b++" - number of dirty pages in block i"
-    , "dirty "++show b++" NYFI"
-    ]
+  =   ( "// dirty_i, for i in 1.."++show b
+        ++" - number of dirty pages in block i" )
+    : map (idirty b) [1..b]
+
+idirty b i = "formula dirty_"++show i++" = p-fm_clean_"++show i++";"
 \end{code}
 
 
@@ -304,10 +310,14 @@ formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
 \end{prism}
 \begin{code}
 cand b
-  = [ "// cand_i_j, for i,j in 1..b, i /= j"
-    , "//  block i is dirty but there is space in block j for its pages"
-    , "cand "++show b++" NYFI"
-    ]
+  =    ( "// cand_i_j, for i,j in 1.."++show b++", i /= j" )
+    :  "//  block i is dirty but there is space in block j for its pages"
+    : map icand [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+
+icand (from,to)
+ =    "formula cand_"++show from++"_"++show to
+   ++ " = dirty_"++show from
+   ++ ">0 & fm_clean_"++show to++" >= dirty_"++show from++";"
 \end{code}
 
 
@@ -321,10 +331,13 @@ formula candidates =
 \end{prism}
 \begin{code}
 candidates b
-  = [ "// the number of ways in which we can relocate dirty pages from one block"
-    , "// to another so we can erase (clean) the first block."
-    , "candidates "++show b++" NYFI"
-     ]
+  =  "// the number of ways in which we can relocate dirty pages from one block"
+   : "// to another so we can erase (clean) the first block."
+   : "formula candidates ="
+   : map (icandidate (3,2)) [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+
+icandidate last curr@(from,to)
+  =  "  (cand_"++show from++"_"++show to++"?1:0)" ++ addend last curr
 \end{code}
 
 
@@ -332,14 +345,21 @@ candidates b
 \begin{prism}
 // true when it is still possibe to erase ANY block,
 // without exceeding the maximum allowable erase operations.
-formula can_erase = fm_erase_1<w & fm_erase_2<w & fm_erase_3<w;
+formula can_erase =
+  fm_erase_1<w &
+  fm_erase_2<w &
+  fm_erase_3<w;
 \end{prism}
 \begin{code}
 can_erase b
-  = [ "// true when it is still possibe to erase ANY block,"
-    , "// without exceeding the maximum allowable erase operations."
-    , "can_erase "++show b++" NYFI"
-     ]
+  =   "// true when it is still possibe to erase ANY block,"
+    : "// without exceeding the maximum allowable erase operations."
+    : "formula can_erase ="
+    : map (icanerase b) [1..b]
+
+icanerase b i = "  fm_erase_"++show i++"<w" ++ andend b i
+
+andend b i = if b == i then ";" else " &"
 \end{code}
 
 
@@ -356,10 +376,13 @@ formula diff_3_2 = fm_erase_3-fm_erase_2;
 \end{prism}
 \begin{code}
 diff b
-  = [ "// diff_i_j, for i,j in 1.."++show b++", i /= j"
-    , "// the difference in number of erasure of blocks i and j"
-    , "diff "++show b++" NYFI"
-     ]
+  =  ( "// diff_i_j, for i,j in 1.."++show b++", i /= j" )
+   : "// the difference in number of erasure of blocks i and j"
+   : map idiff [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+
+idiff (i,j)
+  =    "formula diff_"++show i++"_"++show j
+    ++ " = fm_erase_"++show i++"-fm_erase_"++show j++";"
 \end{code}
 
 
@@ -376,7 +399,12 @@ formula toobig =
 \end{prism}
 \begin{code}
 toobig b
-  = [ "// true if difference in wear equals some limit."
-    , "toobig "++show b++" NYFI"
-     ]
+  =   "// true if difference in wear equals some limit."
+    : "formula toobig ="
+    : map (itoobig (3,2)) [(1,2),(1,3),(2,1),(2,3),(3,1),(3,2)]
+
+itoobig last curr@(i,j)
+  = "  diff_"++show i++"_"++show j++" >= MAXDIFF" ++ orend last curr
+
+orend last curr = if last == curr then ";" else " |"
 \end{code}
