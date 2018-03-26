@@ -4,13 +4,11 @@ Prototype tool to convert parameterised statistical models into the Prism langua
 
 Currently we are looking at *Flash.prism*  - a model of Flash Memory wear-levelling. This has parameters, `b`, `p`, `c`, `w` and `MAXDIFF`. All but `b` can be changed at simulation/analysis time. However changing `b` requires changes to the Prism source. The original model uses `b=3`.
 
-The aim here is:
+The first approach wasto hack a very direct solution that outputs the bits of `b`-independent code as boilerplate, and then adopts simple code generation very tailored to the *Flash.prism* example. 
 
-1. develop something that rewrites *Flash.prism* as `b` varies.
+The current aim is to generalise this by much more general purpose functions to describe the various aspects of the model.
 
-2. To generalise this by defining a suitable domain-specific language (DSL).
-
-The approach will first be to hack a very direct solution that outputs the bits of `b`-independent code as boilerplate, and then adopts simple code generation very tailored to the *Flash.prism* example. Then we will try to generalise to find out the key code abstractions, to form a Haskell DSL.
+Then we will try to generalise to find out the key code abstractions, to form a Haskell DSL.
 
 ## Installation
 
@@ -32,3 +30,18 @@ At present both the tests and the application are trivial stubs. This will chang
 
 This repository contains a Haskell program written as a literate script --- the Haskell source files (`.lhs`)
 are also legitimate LaTeX source files. The code and supporting descriptive material can be rendered by using LaTeX/PDFLaTeX in the usual way on the file `MAIN.tex` in the top-level of the respository. Most of the packages used are standard, or supplied in the `doc` folder.
+
+## Contents
+
+At the top-level there are Haskell build files (`stack.yaml`, `smcgen.cabal`,`Setup.hs`,`LICENSE`) and LaTeX top-level files (`MAIN.tex`, `MAIN.bib`).
+
+The `doc` folder contains LaTeX style files and pure LaTeX files.
+
+The `models` folder contains two folders, `init` and `gen`. Folder `init` contains hand-written models, or ones imported from some external source. The `gen` folder contains modules produced by this software.
+
+The `app`, `src` and `test` folders contain Haskell source code. The modules that do the work lie in the `src` folder. At present, these are:
+
+* `Hack` : a quick and dirty way to take the original `init/Flash.prism` model, written with parameter `b` equal to three, and to generalise it to arbitrary `b`, greater than one.
+
+
+
