@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Hack
+  exposed-modules:     Hack, Abs1
   build-depends:       base >= 4.7 && < 5
                      -- we need to support internal tests for some modules
                      , HUnit

@@ -7,7 +7,8 @@ LICENSE: BSD3, see file LICENSE at smcgen root
 \begin{code}
 module Main where
 import Hack
+import Abs1
 
 main :: IO ()
-main = sequence_ $ map hack [2..8]
+main = abs1 -- sequence_ $ map hack [2..8]
 \end{code}
