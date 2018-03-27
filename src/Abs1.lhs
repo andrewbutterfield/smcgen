@@ -9,293 +9,285 @@ module Abs1 where
 import Data.List
 \end{code}
 
-Here we take the \texttt{Hack} code and abstract it,
-by developing generic functions.
+We now take a fresh look at the initial \texttt{Flash.prism} example,
+but focus instead on structure,
+including declarations, control-flow, and formul\ae.
 
-The key issue with \texttt{Flash.prism} was the presence of two
-arrays of size b.
-The trick we had to implement was to declare each array component
-as a unique variable, with its index as part of its name.
-We still have to do this to produce Prism code,
-but now we should be able to describe this much more abstractly.
+Here we will present excerpts out-of-order, as we focus on specific aspects.
 
-In this module, we now have the \texttt{Hack} code as comments,
-rather than the corresponding Prism code.
+\subsection{Declarations}
 
-\begin{verbatim}
-hack b
- | b < 2 = putStrLn "smcgen with b less than two is somewhat pointless"
- | otherwise = writeFile ("models/gen/Flash"++show b++".prism") $ prismcode b
+The following excerpt captures the range of state declarations we need to
+handle:
+\begin{prism}
+const int b = 3
+const int p
+const int c
+const int INIT = 1
+const int FINISH = 4
+fm_clean_2 : [0..p]
+pc : [INIT..FINISH] init INIT
+i : [0..c] init 0
+\end{prism}
+The first thing that we note is that the declaration of \texttt{fm\_clean\_2}
+is one of several where what we want to declare is an array,
+here in `pseudo-prism':
+\begin{prism}
+fm_clean : array [1..b] of [0..p]
+\end{prism}
 
-prismcode b
- = unlines $ intercalate [""]
-     [ sem, params b, control
-     , mdl b, vars b
-     , step1 b, step2 b, step3, step4, step5, step6 b, step7, endm
-     , writeable b, dirty b
-     , cand b, candidates b, can_erase b
-     , diff b, toobig b ]
-\end{verbatim}
-We will defer this until later.
+\subsubsection{Types}
+
+What we have here are types whose contents depend
+on the value of one or more constants (not variables).
+We have the integer type, range types, and array types.
+Prism also has boolean and double types, which we shall also include.
 \begin{code}
-abs1 = putStrLn "Abs1: not much to see yet."
+type Ident = String -- identifiers
+data Number
+  = I Int    -- literal int
+  | D Double -- literal double
+  | C Ident  -- constant name
+  -- this may have to be generalised to cover numeric expressions.
+  deriving (Eq,Show,Read)
+data Type
+  = BoolT | IntT | DblT -- basic types
+  | RngT Number Number -- range type, lowest to highest
+  | ArrT Number Number Type -- array type
+  deriving (Eq,Show,Read)
+\end{code}
+We note that \texttt{RngT} is a subtype of \texttt{IntT}.
+
+\newpage
+\subsubsection{Constants}
+
+Constants can be declared with a known value,
+or without.
+The latter are to allow different values to be associated with the
+constants as part of experimentation.
+We shall refer to constants without specified values as ``parameters''.
+So, in our terminology,
+the following are constant declarations:
+\begin{prism}
+const int b = 3
+const int INIT = 1
+const int FINISH = 4
+\end{prism}
+whilst these are parameter declarations:
+\begin{prism}
+const int p
+const int c
+\end{prism}
+\begin{code}
+data CDecl
+  = Constant Ident Type Number
+  | Parameter Ident Type
+  deriving (Eq,Show,Read)
+\end{code}
+
+\subsubsection{Variables}
+
+Variables can have an optional initialisation,
+but are initialised to zero or the lowest range value
+if that is ommitted.
+\begin{prism}
+fm_clean_2 : [0..p]
+pc : [INIT..FINISH] init INIT
+i : [0..c] init 0
+fm_clean : array [1..b] of [0..p]
+\end{prism}
+\begin{code}
+data VDecl
+  =  Var Ident Type
+  | VInit Ident Type Number
+  -- note, we can't init arrays with this.
+  deriving (Eq,Show,Read)
+\end{code}
+
+\subsubsection{Declarations from Flash.prism}
+
+\paragraph{Constants} from Prism:
+\begin{prism}
+const int b;
+const int p;
+const int c;
+const int w;
+const int MAXDIFF;
+const int INIT = 1;
+const int WRITE = 2;
+const int SELECT = 3;
+const int FINISH = 4;
+\end{prism}
+\begin{code}
+cdecl
+  = [ Parameter "b" IntT
+    , Parameter "p" IntT
+    , Parameter "c" IntT
+    , Parameter "w" IntT
+    , Parameter "MAXDIFF" IntT
+    , Constant "INIT" IntT $ I 1
+    , Constant "WRITE" IntT $ I 2
+    , Constant "SELECT" IntT $ I 3
+    , Constant "FINISH" IntT $ I 4
+    ]
+\end{code}
+
+\paragraph{Variables} from Prism, using array declarations
+\begin{prism}
+fm_clean: array [1..b] of [0..p];
+fm_erase: array [1..b] of [0..w];
+pc: [INIT..FINISH] init INIT;
+i: [0..c] init 0;
+\end{prism}
+\begin{code}
+vdecl
+  = [ Var "fm_clean" $ ArrT (I 0) (C "b") $ RngT (I 0) (C "p")
+    , Var "fm_erase" $ ArrT (I 0) (C "b") $ RngT (I 0) (C "w")
+    , VInit "pc" (RngT (C "INIT") (C "FINISH")) $ C "INIT"
+    , VInit "i" (RngT (I 0) (C "c")) $ I 0
+    ]
 \end{code}
 
 
+\subsection{Flow of Control}
 
-\begin{verbatim}
-sem = ["dtmc"]
-\end{verbatim}
-Looks like an enumeration for now:
+
+\subsection{Formul\ae}
+
+
+\subsection{The Big Picture}
+
 \begin{code}
-data SMCSem = DTMC | SMCSother deriving (Eq,Show,Read)
+abs1
+  = do putStrLn "Abs1 under development:"
+       putStrLn "Constant Declarations:"
+       putlist cdecl
+       putStrLn "Variable Declarations:"
+       putlist vdecl
+       putStrLn "Also try ':browse Abs1' for now."
+  where
+    putlist xs = sequence_ $ map putthing xs
+    putthing :: Show t => t -> IO ()
+    putthing x = putStrLn $ ("  "++) $ show x
 \end{code}
 
+\subsubsection{Original Prism Code}
 
-\begin{verbatim}
-params b
-  = [ "const int b="++show b++"; // Block Count: Our problematic parameter"
-    , "const int p; // Pages per Block"
-    , "const int c; // Number of page writes between wear levelling"
-    , "const int w; // Maximum wear tolerance (no. of erasures)"
-    , "const int MAXDIFF; // Maximum desired difference in wear across blocks."
-  ]
+As a holding position, here is all of \texttt{Flash.prism}:
+\begin{prism}
+dtmc
 
-control
-  = [ "// control flow"
-    , "const int INIT = 1;    // startup"
-    , "const int WRITE = 2;   // page writes"
-    , "const int SELECT = 3;  // wear-levelling"
-    , "const int FINISH = 4;  // done: memory full or worn out"
-    ]
-\end{verbatim}
-These are constant/parameter declarations: names, types.
-\begin{code}
-type Param = (Name,Type,Maybe Value)
-type Name = String
-data Type = TypInt | TypOther deriving (Eq, Show, Read)
-data Value = I Int | TO deriving (Eq, Show, Read)
+const int b=3; // Block Count: Our problematic parameter
+const int p; // Pages per Block
+const int c; // Number of page writes between wear levelling
+const int w; // Maximum wear tolerance (no. of erasures)
+const int MAXDIFF; // Maximum desired difference in wear across blocks.
+// control flow
+const int INIT = 1;    // startup
+const int WRITE = 2;   // page writes
+const int SELECT = 3;  // wear-levelling
+const int FINISH = 4;  // done: memory full or worn out
 
-constant  n t v = (n,t,Just v)
-parameter n t   = (n,t,Nothing)
+module Flash
 
-b = parameter "b" TypInt
-p = parameter "p" TypInt
-c = parameter "c" TypInt
-w = parameter "w" TypInt
-maxdiff = parameter "MAXDIFF" TypInt
+// fm_clean_i, for i in 1..b - the number of clean pages in block i
+fm_clean_1: [0..p];
+fm_clean_2: [0..p];
+fm_clean_3: [0..p];
+// fm_erase_i, i in 1..b, the number of times block i has been erased.
+fm_erase_1: [0..w];
+fm_erase_2: [0..w];
+fm_erase_3: [0..w];
 
-init = constant "INIT" TypInt (I 1)
-write = constant "WRITE" TypInt (I 2)
-select = constant "SELECT" TypInt (I 3)
-finish = constant "FINISH" TypInt (I 4)
-\end{code}
+pc: [INIT..FINISH] init INIT;
+// count the number of page writes done since last wear-levelling.
+i: [0..c] init 0;
 
-\begin{verbatim}
-mdl b = [ "module Flash"++show b ]
-\end{verbatim}
-Defer until the shape of things is better understood.
+// Step 1
+[] pc=INIT ->
+  (fm_clean_1'=p) & (fm_clean_2'=p) & (fm_clean_3'=p) &
+  (fm_erase_1'=0) & (fm_erase_2'=0) & (fm_erase_3'=0) &
+  (pc'=WRITE);
+// Step 2
+[] pc=WRITE & i<c & writeable!=0 ->
+  (fm_clean_1>0?1/writeable:0): (fm_clean_1'=fm_clean_1-1) & (i'=i+1) +
+  (fm_clean_2>0?1/writeable:0): (fm_clean_2'=fm_clean_2-1) & (i'=i+1) +
+  (fm_clean_3>0?1/writeable:0): (fm_clean_3'=fm_clean_3-1) & (i'=i+1);
+// Step 3
+[] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
+// Step 4
+[] pc=WRITE & i=c -> (pc'=SELECT);
+// Step 5
+[] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);
+// Step 6
+[] pc=SELECT & candidates!=0 & can_erase ->
+  (cand_1_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_1_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE);
+// Step 7
+[] pc=FINISH -> true;
 
+endmodule
 
-\begin{verbatim}
-vars :: Int -> [String]
-vars b
-  = ( ("// fm_clean_i, for i in 1.."++show b++" - no of clean pages in block i")
-    : map (idecl "fm_clean_" ": [0..p];") [1..b] )
-    ++
-    ( ("// fm_erase_i, i in 1.."++show b++", no of times block i has been erased.")
-    : map (idecl "fm_erase_" ":[0..w];") [1..b] )
-    ++
-    [ "pc: [INIT..FINISH] init INIT; // program counter"
-    , "i: [0..c] init 0; // number of writes done since last wear-levelling."
-    ]
+// a block is writeable if it has at least one clean page
+// We need to know how many of these there are.
+formula writeable = (fm_clean_1!=0 ? 1 : 0) +  (fm_clean_2!=0 ? 1 : 0)
+                  + (fm_clean_3!=0 ? 1 : 0);
 
-idecl root typ i = root ++ show i ++ typ
-\end{verbatim}
-We have scalar and array variables (with parametric sizes).
-A key question is to what extent we should support multi-dimensional arrays.
-\begin{code}
-data Var = ScalarV Name Type | ArrV Index Var deriving (Eq,Show,Read)
-type Index = (Number,Number)
-data Number = N Int | P Param deriving (Eq,Show,Read)
+// dirty_i, for i in 1..b - number of dirty pages in block i
+formula dirty_1 = p-fm_clean_1;
+formula dirty_2 = p-fm_clean_2;
+formula dirty_3 = p-fm_clean_3;
 
-fm_clean = ArrV (N 0,P b) $ ScalarV "fm_clean" TypInt -- need range type
-fm_erase = ArrV (N 0,P b) $ ScalarV "fm_erase" TypInt -- need range type
-pc = constant "pc" TypInt $ N 1 -- should refer to INIT !!!
-\end{code}
-We now see that \texttt{Param}, \textt{Number}, \textt{Type} etc., are mutually dependent.
+// cand_i_j, for i,j in 1..b, i /= j
+//  block i is dirty but there is space in block j for its pages
+formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
+formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
+formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
+formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
+formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
+formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
 
-What we have so far allows us to characterise the state of a module.
+// the number of ways in which we can relocate dirty pages from one block
+// to another so we can erase (clean) the first block.
+formula candidates =
+  (cand_1_2?1:0) + (cand_1_3?1:0) + (cand_2_1?1:0) +
+  (cand_2_3?1:0) + (cand_3_1?1:0) + (cand_3_2?1:0);
 
-What follows is a description of its dynamic behaviour.
+// true when it is still possibe to erase ANY block,
+// without exceeding the maximum allowable erase operations.
+formula can_erase = fm_erase_1<w & fm_erase_2<w & fm_erase_3<w;
 
-\begin{verbatim}
-step1 b
-  =    "// Step 1"
-    :  "[] pc=INIT ->"
-    :  (map (iinit "  (fm_clean_" "'=p) &") [1..b])
-    ++ (map (iinit "  (fm_erase_" "'=p) &") [1..b])
-    ++ [ "  (pc'=WRITE);" ]
+// diff_i_j, for i,j in 1..b, i /= j
+// the difference in number of erasure of blocks i and j
+formula diff_1_2 = fm_erase_1-fm_erase_2;
+formula diff_1_3 = fm_erase_1-fm_erase_3;
+formula diff_2_1 = fm_erase_2-fm_erase_1;
+formula diff_2_3 = fm_erase_2-fm_erase_3;
+formula diff_3_1 = fm_erase_3-fm_erase_1;
+formula diff_3_2 = fm_erase_3-fm_erase_2;
 
-iinit root val i = root ++ show i ++ val
-\end{verbatim}
-
-
-
-\begin{verbatim}
-step2 b
-  =    "// Step 2"
-    : "[] pc=WRITE & i<c & writeable!=0 ->"
-    : map (iwrite b) [1..b]
-
-iwrite b i
-  =     "  (fm_clean_"++show i
-     ++ ">0?1/writeable:0): (fm_clean_"++show i
-     ++ "'=fm_clean_"++show i
-     ++ "-1) & (i'=i+1)"
-     ++ addend b i
-
-addend b i = if i == b then ";" else " +"
-\end{verbatim}
-
-
-\begin{verbatim}
-step3
-  = [ "// Step 3"
-    , "[] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);"
-    ]
-\end{verbatim}
-
-
-\begin{verbatim}
-step4
-  = [ "// Step 4"
-    , "[] pc=WRITE & i=c -> (pc'=SELECT);"
-    ]
-\end{verbatim}
-
-
-\begin{verbatim}
-step5
-  = [ "// Step 5"
-    , "[] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);"
-    ]
-\end{verbatim}
-
-
-\begin{verbatim}
-step6 b
-  =    "// Step 6"
-    :  "[] pc=SELECT & candidates!=0 & can_erase ->"
-    : (concat $ map (ierase $ lst b) $ ndTuples b)
-
-ndTuples n = filter nonDiag $ [(i,j)| i <- [1..n], j <- [1..n]]
-nonDiag (i,j) = i /= j
-
-lst n = (n,n-1)
-
-ierase last curr@(from,to)
-  = [    "  (cand_"++show from++"_"++show to
-      ++ " ? 1/candidates : 0): (fm_clean_"++show to
-      ++ "'=fm_clean_"++show to++"-dirty_"++show from++") &"
-    ,    "                                 (fm_clean_"++show from
-      ++ "'=p) & (fm_erase_"++show from++"'=fm_erase_"++show from++"+1) &"
-    ,    "                                 (i'=0) & (pc'=WRITE)"
-      ++ addend last curr
-    ]
-\end{verbatim}
-
-
-\begin{verbatim}
-step7
-  = [ "// Step 7"
-    , "[] pc=FINISH -> true;"
-    ]
-\end{verbatim}
-
-
-\begin{verbatim}
-endm = [ "endmodule" ]
-\end{verbatim}
-
-
-\begin{verbatim}
-writeable b
-  =   "// a block is writeable if it has at least one clean page"
-    : "// We need to know how many of these there are."
-    : "formula writeable ="
-    : map (iwriteable b) [1..b]
-
-iwriteable b i = "  (fm_clean_"++show i++"!=0 ? 1 : 0)" ++ addend b i
-\end{verbatim}
-
-\begin{verbatim}
-dirty b
-  =   ( "// dirty_i, for i in 1.."++show b
-        ++" - number of dirty pages in block i" )
-    : map (idirty b) [1..b]
-
-idirty b i = "formula dirty_"++show i++" = p-fm_clean_"++show i++";"
-\end{verbatim}
-
-\begin{verbatim}
-cand b
-  =    ( "// cand_i_j, for i,j in 1.."++show b++", i /= j" )
-    :  "//  block i is dirty but there is space in block j for its pages"
-    : ( map icand $ ndTuples b)
-
-icand (from,to)
- =    "formula cand_"++show from++"_"++show to
-   ++ " = dirty_"++show from
-   ++ ">0 & fm_clean_"++show to++" >= dirty_"++show from++";"
-\end{verbatim}
-
-
-\begin{verbatim}
-candidates b
-  =  "// the number of ways in which we can relocate dirty pages from one block"
-   : "// to another so we can erase (clean) the first block."
-   : "formula candidates ="
-   : ( map (icandidate $ lst b) $ ndTuples b )
-
-icandidate last curr@(from,to)
-  =  "  (cand_"++show from++"_"++show to++"?1:0)" ++ addend last curr
-\end{verbatim}
-
-
-\begin{verbatim}
-can_erase b
-  =   "// true when it is still possibe to erase ANY block,"
-    : "// without exceeding the maximum allowable erase operations."
-    : "formula can_erase ="
-    : map (icanerase b) [1..b]
-
-icanerase b i = "  fm_erase_"++show i++"<w" ++ andend b i
-
-andend b i = if b == i then ";" else " &"
-\end{verbatim}
-
-
-\begin{verbatim}
-diff b
-  =  ( "// diff_i_j, for i,j in 1.."++show b++", i /= j" )
-   : "// the difference in number of erasure of blocks i and j"
-   : ( map idiff $ ndTuples b )
-
-idiff (i,j)
-  =    "formula diff_"++show i++"_"++show j
-    ++ " = fm_erase_"++show i++"-fm_erase_"++show j++";"
-\end{verbatim}
-
-
-\begin{verbatim}
-toobig b
-  =   "// true if difference in wear equals some limit."
-    : "formula toobig ="
-    : ( map (itoobig $ lst b) $ ndTuples b )
-
-itoobig last curr@(i,j)
-  = "  diff_"++show i++"_"++show j++" >= MAXDIFF" ++ orend last curr
-
-orend last curr = if last == curr then ";" else " |"
-\end{verbatim}
+// true if difference in wear equals some limit.
+formula toobig =
+  diff_1_2 >= MAXDIFF |
+  diff_1_3 >= MAXDIFF |
+  diff_2_1 >= MAXDIFF |
+  diff_2_3 >= MAXDIFF |
+  diff_3_1 >= MAXDIFF |
+  diff_3_2 >= MAXDIFF;
+\end{prism}
