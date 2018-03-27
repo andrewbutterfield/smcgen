@@ -148,13 +148,89 @@ vdecl
     ]
 \end{code}
 
-
+\newpage
 \subsection{Flow of Control}
 
+Here is an excerpt of control-flow:
+\begin{prism}
+[] pc=WRITE & i<c & writeable!=0 ->
+  (fm_clean_1>0?1/writeable:0): (fm_clean_1'=fm_clean_1-1) & (i'=i+1) +
+  (fm_clean_2>0?1/writeable:0): (fm_clean_2'=fm_clean_2-1) & (i'=i+1) +
+  (fm_clean_3>0?1/writeable:0): (fm_clean_3'=fm_clean_3-1) & (i'=i+1);
+[] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
+[] pc=SELECT & candidates!=0 & can_erase ->
+  (cand_1_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_1_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_1) &
+                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_2_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_2) &
+                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE) +
+  (cand_3_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_3) &
+                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
+                                 (i'=0) & (pc'=WRITE);
+\end{prism}
+Now that we have array values, we need to define some form of iterator/visitor
+syntax.
+We propose that the above becomes:
+\begin{prism}
+[] pc=WRITE & i<c & writeable!=0 ->
+  for x:[1..b] apply + @
+    (fm_clean[x]>0?1/writeable:0): (fm_clean'[x]=fm_clean[x]-1) & (i'=i+1);
+[] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
+[] pc=SELECT & candidates!=0 & can_erase ->
+  for from,to:[1..b] apply + @
+  (x /= y && cand(x,y) ? 1/candidates : 0):
+     (fm_clean[to]'=fm_clean[to]-dirty(from)) &
+     (fm_clean[to]'=p) & (fm_erase[to]'=fm_erase[to]+1) & (i'=0) & (pc'=WRITE) ;
+\end{prism}
+Here we have a new construct:
+\begin{prism}
+for vars:ranges apply op to update
+\end{prism}
+Note how the formula now take parameters!
 
+
+\newpage
 \subsection{Formul\ae}
 
+A selection of formul\ae:
+\begin{prism}
+formula writeable = (fm_clean_1!=0 ? 1 : 0) +  (fm_clean_2!=0 ? 1 : 0)
+                  + (fm_clean_3!=0 ? 1 : 0);
+formula dirty_1 = p-fm_clean_1;
+formula dirty_2 = p-fm_clean_2;
+formula dirty_3 = p-fm_clean_3;
+formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
+formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
+formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
+formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
+formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
+formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
+formula candidates =
+  (cand_1_2?1:0) + (cand_1_3?1:0) + (cand_2_1?1:0) +
+  (cand_2_3?1:0) + (cand_3_1?1:0) + (cand_3_2?1:0);
+\end{prism}
+Again, we want to exploit our new array capabilities:
+\begin{prism}
+formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+formula dirty(x) = p-fm_clean[x];
+formula cand(x,y) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
+\end{prism}
+We see the new \texttt{for} construct, where expressions replace updates
+as well as having parameterised formul\ae.
+So far the paramters are only variables.
 
+\newpage
 \subsection{The Big Picture}
 
 \begin{code}
