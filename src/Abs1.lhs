@@ -15,6 +15,32 @@ including declarations, control-flow, and formul\ae.
 
 Here we will present excerpts out-of-order, as we focus on specific aspects.
 
+\subsection{Expressions}
+
+We need to support Prism expressions.
+\begin{code}
+data Expr
+  = I Int    -- literal int
+  | D Double -- literal double
+  | C Ident  -- constant name
+  | F String [Expr] -- generic function
+  deriving (Eq,Show,Read)
+
+isAtomic :: Expr -> Bool
+isAtomic (I _)  =  True
+isAtomic (D _)  =  True
+isAtomic (C _)  =  True
+isAtomic _      =  False
+\end{code}
+Supported forms of \texttt{F}:
+\begin{eqnarray*}
+   \textrm{unary}   && -,!
+\\ \textrm{binary}  && *,/,+,-,<,<=,>=,>,=,!=,\&,|,<=>,=>
+\\ \textrm{mixfix}  && \_?\_:\_
+\\ \textrm{prefix}  && min,max,floor,ceil,pow,mod,log
+\end{eqnarray*}
+
+
 \subsection{Declarations}
 
 The following excerpt captures the range of state declarations we need to
@@ -36,6 +62,7 @@ here in `pseudo-prism':
 fm_clean : array [1..b] of [0..p]
 \end{prism}
 
+
 \subsubsection{Types}
 
 What we have here are types whose contents depend
@@ -44,12 +71,7 @@ We have the integer type, range types, and array types.
 Prism also has boolean and double types, which we shall also include.
 \begin{code}
 type Ident = String -- identifiers
-data Number
-  = I Int    -- literal int
-  | D Double -- literal double
-  | C Ident  -- constant name
-  -- this may have to be generalised to cover numeric expressions.
-  deriving (Eq,Show,Read)
+type Number = Expr -- Atomic (I, D or C only)
 data Type
   = BoolT | IntT | DblT -- basic types
   | RngT Number Number -- range type, lowest to highest
@@ -178,6 +200,15 @@ Here is an excerpt of control-flow:
                                  (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
                                  (i'=0) & (pc'=WRITE);
 \end{prism}
+From the Prism reference,
+we see that these statements have three components:
+\begin{itemize}
+  \item Synchronising Events, of which this particular example has none.
+  \item Boolean Guard Expression
+  \item Probabilistic Choice over Updates.
+\end{itemize}
+
+
 Now that we have array values, we need to define some form of iterator/visitor
 syntax.
 We propose that the above becomes:
@@ -192,11 +223,12 @@ We propose that the above becomes:
      (fm_clean[to]'=fm_clean[to]-dirty(from)) &
      (fm_clean[to]'=p) & (fm_erase[to]'=fm_erase[to]+1) & (i'=0) & (pc'=WRITE) ;
 \end{prism}
-Here we have a new construct:
+Here we have a new \texttt{for}-construct:
 \begin{prism}
 for vars:ranges apply op to update
 \end{prism}
-Note how the formula now take parameters!
+Here this construct plays the role of a probabilistic choice over updates.
+Note also  how the formul\ae now take parameters!
 
 
 \newpage
@@ -226,9 +258,9 @@ formula dirty(x) = p-fm_clean[x];
 formula cand(x,y) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
 formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
 \end{prism}
-We see the new \texttt{for} construct, where expressions replace updates
+We see the new \texttt{for}-construct, where expressions replace updates
 as well as having parameterised formul\ae.
-So far the paramters are only variables.
+So far the parameters are only variables.
 
 \newpage
 \subsection{The Big Picture}
