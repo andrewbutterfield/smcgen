@@ -15,32 +15,63 @@ including declarations, control-flow, and formul\ae.
 
 Here we will present excerpts out-of-order, as we focus on specific aspects.
 
+\newpage
 \subsection{Expressions}
 
 We need to support Prism expressions.
 \begin{code}
 data Expr
-  = I Int    -- literal int
+  = B Bool -- literal boolean
+  | I Int    -- literal int
   | D Double -- literal double
   | C Ident  -- constant name
   | F String [Expr] -- generic function
   deriving (Eq,Show,Read)
 
 isAtomic :: Expr -> Bool
+isAtomic (B _)  =  True
 isAtomic (I _)  =  True
 isAtomic (D _)  =  True
 isAtomic (C _)  =  True
 isAtomic _      =  False
 \end{code}
-Supported forms of \texttt{F}:
-\begin{eqnarray*}
-   \textrm{unary}   && -,!
-\\ \textrm{binary}  && *,/,+,-,<,<=,>=,>,=,!=,\&,|,<=>,=>
-\\ \textrm{mixfix}  && \_?\_:\_
-\\ \textrm{prefix}  && min,max,floor,ceil,pow,mod,log
-\end{eqnarray*}
 
+Supported infix forms of \texttt{F} from \cite{KNP11},
+the most strongly binding first:
+\begin{verbatim}
+- (unary minus)
+*, / (multiplication, division)
++, - (addition, subtraction)
+<, <=, >=, > (relational operators)
+=, != (equality operators)
+! (negation)
+& (conjunction)
+| (disjunction)
+<=> (if-and-only-if)
+=> (implication)
+? (condition evaluation: condition ? a : b means "if condition is true then a else b")
+\end{verbatim}
+For now, the ones in use in this example:
+\begin{code}
+infixl 7 ./  ;  e1 ./ e2   =  F "/"  [e1,e2]
+infixl 7 .*  ;  e1 .* e2   =  F "*"  [e1,e2]
+infixl 6 .+  ;  e1 .+ e2   =  F "+"  [e1,e2]
+infixl 6 .-  ;  e1 .- e2   =  F "-"  [e1,e2]
+infix  4 .=  ;  e1 .= e2   =  F "="  [e1,e2]
+infix  4 .!= ;  e1 .!= e2  =  F "!=" [e1,e2]
+infix  4 .<  ;  e1 .< e2   =  F "<"  [e1,e2]
+infix  4 .>  ;  e1 .> e2   =  F ">"  [e1,e2]
+infix  4 .>= ;  e1 .>= e2  =  F ">=" [e1,e2]
+infix  3 .&  ;  e1 .&  e2  =  F "&"  [e1,e2]
+infix  2 .|  ;  e1 .|  e2  =  F "|"  [e1,e2]
+infix  1 <=> ;  e1 <=> e2  =  F "<=>"[e1,e2]
+infix  0 .=> ;  e1 .=> e2  =  F "=>" [e1,e2]
+-- faking e0 .? e1 .: e2 -->
+infix  1 .:  ;  e1 .: e2   =         [e1,e2]
+infix  0 .?  ;  e0 .? es   =  F "?:" (e0:es)
+\end{code}
 
+\newpage
 \subsection{Declarations}
 
 The following excerpt captures the range of state declarations we need to
