@@ -1,4 +1,4 @@
-N\section{Abstraction, Level One}
+\section{Abstraction, Level One}
 \begin{verbatim}
 Copyright  Andrew Buttefield (c) 2018
 
@@ -26,6 +26,7 @@ data Expr
   | I Int    -- literal int
   | D Double -- literal double
   | N Ident  -- variable/constant name
+  | N' Ident -- after-value of N
   | F String -- function name /operator symbol
       [Expr] -- function/operator arguments
   | P Expr  -- probability
@@ -78,6 +79,8 @@ infix  0 .=> ;  e1 .=> e2  =  F "=>" [e1,e2]
 -- faking e0 .? e1 .: e2 -->
 infix  1 .:  ;  e1 .: e2   =         [e1,e2]
 infix  0 .?  ;  e0 .? es   =  F "?:" (e0:es)
+
+lnot e = F "!" [e]
 \end{code}
 
 \newpage
@@ -229,11 +232,141 @@ vdecl
     , VInit "pc" (rngT _INIT _FINISH) _INIT
     , VInit "i" (rngT _0 c) _0
     ]
- -- as atomic expressions
-fm_clean = N "fm_clean"
-fm_erase = N "fm_erase"
-pc       = N "pc"
-i        = N "i"
+ -- as most commonly used expressions
+fm_clean[x] = AI (N "fm_clean") x ; fm_clean'[x] = AI (N' "fm_clean") x
+fm_erase[x] = AI (N "fm_erase") x ; fm_erase'[x] = AI (N' "fm_erase") x
+pc       = N "pc"       ; pc'       = N' "pc"
+i        = N "i"        ; i'        = N' "i"
+\end{code}
+
+\newpage
+\subsection{Formul\ae}
+
+A selection of formul\ae:
+\begin{prism}
+formula writeable = (fm_clean_1!=0 ? 1 : 0) +  (fm_clean_2!=0 ? 1 : 0)
+                  + (fm_clean_3!=0 ? 1 : 0);
+formula dirty_1 = p-fm_clean_1;
+formula dirty_2 = p-fm_clean_2;
+formula dirty_3 = p-fm_clean_3;
+formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
+formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
+formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
+formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
+formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
+formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
+formula candidates =
+  (cand_1_2?1:0) + (cand_1_3?1:0) + (cand_2_1?1:0) +
+  (cand_2_3?1:0) + (cand_3_1?1:0) + (cand_3_2?1:0);
+\end{prism}
+Here we see the need for arrays
+and a new \texttt{for}-expression:
+\begin{prism}
+for vars:ranges apply op to expr
+\end{prism}
+
+We can use this to simplify all of the above:
+\begin{prism}
+formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+formula dirty(x) = p-fm_clean[x];
+formula cand(x,y) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
+\end{prism}
+We see the new \texttt{for}-construct, where expressions replace updates
+as well as having parameterised formul\ae.
+So far the parameters are only variables.
+So the general form is a formula-name,
+zero or more variable arguments,
+and a body-expression.
+We shall treat an update as an expression,
+that has dashed-forms of variables in it.
+\begin{code}
+data Formula
+  = Formula Ident [Ident] Expr
+  deriving (Eq,Show,Read)
+\end{code}
+
+\subsubsection{Formulas from Flash.prism}
+
+Rewritten ``our style'':
+\begin{prism}
+formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+\end{prism}
+\begin{code}
+x = N "x" ; y = N "y"
+_writeable
+  = Formula "writeable" []
+            $ AF [Var "x" (rngT _1 b)]
+                 "+"
+                 (fm_clean[x] .!= _0 .? _1 .: _0)
+writeable = N "writeable"
+\end{code}
+\begin{prism}
+formula dirty(x) = p-fm_clean[x];
+\end{prism}
+\begin{code}
+_dirty
+  = Formula "dirty" ["x"]
+            (p .- fm_clean[x])
+dirty e = F "dirty" [e]
+\end{code}
+\begin{prism}
+formula cand(x,y) = x!=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+\end{prism}
+\begin{code}
+_cand
+  = Formula "cand" ["x","y"]
+            ( x .!= y .&
+              dirty(x) .> _0 .&
+              fm_clean[x] .>= dirty(x) )
+cand (e, f) = F "cand" [e,f]
+\end{code}
+\begin{prism}
+formula candidates = for x,y:[1..b] apply + to (x!=y & cand(x,y)?1:0);
+\end{prism}
+\begin{code}
+_candidates
+  = Formula "candidates" []
+            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
+                 "+"
+                 ( x .!= y .&
+                   cand (x, y) .? _1 .: _0 )
+candidates = N "candidates"
+\end{code}
+\begin{prism}
+formula can_erase = for x:[1..b] apply & to fm_erase[x]<w ;
+\end{prism}
+\begin{code}
+_can_erase
+  = Formula "can_erase" []
+            $ AF [Var "x" (rngT _1 b)]
+                 "&"
+                 ( fm_erase[x] .< w)
+can_erase = N "can_erase"
+\end{code}
+\begin{prism}
+formula diff(x,y) = fm_erase(x)-fm_erase(y);
+\end{prism}
+\begin{code}
+_diff
+  = Formula "diff" ["x","y"]
+            ( fm_erase[x] .- fm_erase[y] )
+diff (e,f) = F "diff" [e,f]
+\end{code}
+\begin{prism}
+formula toobig = for x,y:[1..b] apply | to (x!=y & diff(x,y) >= MAXDIFF)
+\end{prism}
+\begin{code}
+_toobig
+  = Formula "toobig" []
+            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
+                 "|"
+                 ( x .!= y .&
+                   diff(x, y) .>= _MAXDIFF )
+toobig = N "toobig"
+\end{code}
+\begin{code}
+formulae = [_writeable,_dirty,_cand,_candidates,_can_erase,_diff,_toobig]
 \end{code}
 
 \newpage
@@ -273,6 +406,16 @@ we see that these statements have three components:
   \item Boolean Guard Expression
   \item Probabilistic Choice over Updates.
 \end{itemize}
+The latter can be considered as as using two extensions
+to the expression idea, namely tagging with a probability expression,
+and using dashed variables in expressions.
+\begin{code}
+data Command
+  = Cmd [String]  -- synchronisation labels
+        Expr      -- boolean guard
+        Expr      -- Update Expression
+  deriving (Eq, Show, Read)
+\end{code}
 
 
 Now that we have array values, we need to define some form of iterator/visitor
@@ -289,124 +432,83 @@ We propose that the above becomes:
      (fm_clean[to]'=fm_clean[to]-dirty(from)) &
      (fm_clean[to]'=p) & (fm_erase[to]'=fm_erase[to]+1) & (i'=0) & (pc'=WRITE) ;
 \end{prism}
-Here we have a new \texttt{for}-construct:
-\begin{prism}
-for vars:ranges apply op to update
-\end{prism}
-Here this construct plays the role of a probabilistic choice over updates.
-Note also  how the formul\ae now take parameters!
+Here the \texttt{for}-construct plays the role of a probabilistic choice over updates.
 
-
-\newpage
-\subsection{Formul\ae}
-
-A selection of formul\ae:
-\begin{prism}
-formula writeable = (fm_clean_1!=0 ? 1 : 0) +  (fm_clean_2!=0 ? 1 : 0)
-                  + (fm_clean_3!=0 ? 1 : 0);
-formula dirty_1 = p-fm_clean_1;
-formula dirty_2 = p-fm_clean_2;
-formula dirty_3 = p-fm_clean_3;
-formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
-formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
-formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
-formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
-formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
-formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
-formula candidates =
-  (cand_1_2?1:0) + (cand_1_3?1:0) + (cand_2_1?1:0) +
-  (cand_2_3?1:0) + (cand_3_1?1:0) + (cand_3_2?1:0);
-\end{prism}
-Again, we want to exploit our new array capabilities:
-\begin{prism}
-formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
-formula dirty(x) = p-fm_clean[x];
-formula cand(x,y) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
-formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
-\end{prism}
-We see the new \texttt{for}-construct, where expressions replace updates
-as well as having parameterised formul\ae.
-So far the parameters are only variables.
-So the general form is a formula-name,
-zero or more variable arguments,
-and a body-expression.
-We shall treat an update as an expression,
-that has dashed-forms of variables in it.
-\begin{code}
-data Formula
-  = Formula Ident [Ident] Expr
-  deriving (Eq,Show,Read)
-\end{code}
-
-\subsubsection{Formulas from Flash.prism}
+\subsubsection{Commands from Flash.prism}
 
 Rewritten ``our style'':
+
 \begin{prism}
-formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+[] pc=INIT ->
+  ( for x:[1..b] apply & to (fm_clean'[x]=p) & (fm_erase'[x]=0)) )
+  & (pc'=WRITE);
 \end{prism}
 \begin{code}
-_writeable
-  = Formula "writeable" []
-            $ AF [Var "x" (rngT _1 b)]
-                 "+"
-                 (AI fm_clean (N "x") .!= _0 .? _1 .: _0)
-writeable = N "writeable"
+cmd1 = Cmd [] (pc .= _INIT)
+           ( ( AF [Var "x" $ rngT _1 b]
+                "&"
+                ( fm_clean'[x] .= p) .& fm_erase[x] .= _0 )
+              .& pc' .= _WRITE )
 \end{code}
 \begin{prism}
-formula dirty(x) = p-fm_clean[x];
+[] pc=WRITE & i<c & writeable!=0 ->
+  for x:[1..b] apply + @
+    (fm_clean[x]>0?1/writeable:0): (fm_clean'[x]=fm_clean[x]-1) & (i'=i+1);
 \end{prism}
 \begin{code}
-_dirty
-  = Formula "dirty" ["x"]
-            (p .- AI fm_clean (N "x"))
-dirty e = F "dirty" [e]
+cmd2 = Cmd [] (pc .= _WRITE .& writeable .!= _0)
+           ( AF [Var "x" $ rngT _1 b]
+                "+"
+                ( P (fm_clean[x] .> _0 .? _1./writeable .: _0)
+                    ( fm_clean'[x] .= fm_clean[x]
+                      .& i' .= i .+ _1 ) ) )
 \end{code}
 \begin{prism}
-formula cand(x,y) = x!=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+[] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
 \end{prism}
 \begin{code}
-_cand
-  = Formula "cand" ["x","y"]
-            ( N "x" .!= N "y" .&
-              dirty(N "x") .> _0 .&
-              AI fm_clean (N "x") .>= F "dirty" [N "x"] )
-cand (e, f) = F "cand" [e,f]
+cmd3 = Cmd [] (pc .= _WRITE .& writeable .= _0) (pc' .= _FINISH)
 \end{code}
 \begin{prism}
-formula candidates = for x,y:[1..b] apply + to (x!=y & cand(x,y)?1:0);
+[] pc=WRITE & i=c -> (pc'=SELECT);
 \end{prism}
 \begin{code}
-_candidates
-  = Formula "candidates" []
-            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
-                 "+"
-                 ( N "x" .!= N "y" .&
-                   cand (N "x", N "y") .? _1 .: _0 )
-candidates = N "candidates"
+cmd4 = Cmd [] (pc .= _WRITE .& i .= c) (pc' .= _SELECT)
 \end{code}
 \begin{prism}
-formula diff(x,y) = fm_erase(x)-fm_erase(y);
+[] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);
 \end{prism}
 \begin{code}
-_diff
-  = Formula "diff" ["x","y"]
-            ( AI fm_erase (N "x") .- AI fm_erase (N "y") )
-diff (e,f) = F "diff" [e,f]
+cmd5 = Cmd [] (pc .= _SELECT .& ( candidates .= _0 .| lnot can_erase ) )
+              (pc' .= _FINISH)
 \end{code}
 \begin{prism}
-formula toobig = for x,y:[1..b] apply | to (x!=y & diff(x,y) >= MAXDIFF)
+[] pc=SELECT & candidates!=0 & can_erase ->
+  for from,to:[1..b] apply + @
+  (from != to & cand(from,to) ? 1/candidates : 0):
+     (fm_clean[to]'=fm_clean[to]-dirty(from)) &
+     (fm_clean[from]'=p) & (fm_erase[from]'=fm_erase[from]+1) &
+     (i'=0) & (pc'=WRITE) ;
 \end{prism}
 \begin{code}
-_toobig
-  = Formula "toobig" []
-            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
-                 "|"
-                 ( N "x" .!= N "y" .&
-                   diff(N "x", N "y") .>= _MAXDIFF )
-toobig = N "toobig"
+from = N "from" ; to = N "to"
+cmd6 = Cmd [] (pc .= _SELECT .& candidates .!= _0 .& can_erase)
+           ( AF [Var "from" $ rngT _1 b,Var "to" $ rngT _1 b]
+                "+"
+                ( P ( from .!= to .& cand(from,to) .? _1./candidates .: _0)
+                    ( fm_clean'[to] .= fm_clean[to] .- dirty(from)
+                      .& fm_clean'[from] .= p
+                      .& fm_erase'[from] .= fm_erase[from] .+ _1
+                      .& i' .= _0 .& pc' .= _WRITE ) ) )
+\end{code}
+\begin{prism}
+[] pc=FINISH -> true;
+\end{prism}
+\begin{code}
+cmd7 = Cmd [] (pc .= _FINISH) (B True)
 \end{code}
 \begin{code}
-formulae = [_writeable,_dirty,_cand,_candidates,_diff,_toobig]
+commands = [cmd1,cmd2,cmd3,cmd4,cmd5,cmd6,cmd7]
 \end{code}
 
 \newpage
@@ -415,13 +517,15 @@ formulae = [_writeable,_dirty,_cand,_candidates,_diff,_toobig]
 \begin{code}
 abs1
   = do putStrLn "Abs1 under development:"
-       putStrLn "Constant Declarations:"
+       putStrLn "\nConstant Declarations:\n-----"
        putlist cdecl
-       putStrLn "Variable Declarations:"
+       putStrLn "\nVariable Declarations:\n-----"
        putlist vdecl
-       putStrLn "Formulae"
+       putStrLn "\nFormulae:\n-----"
        putlist formulae
-       putStrLn "Also try ':browse Abs1' for now."
+       putStrLn "\nCommands:\n-----"
+       putlist commands
+       putStrLn "\nAlso try ':browse Abs1' for now."
   where
     putlist xs = sequence_ $ map putthing xs
     putthing :: Show t => t -> IO ()
