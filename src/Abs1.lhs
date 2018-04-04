@@ -1,4 +1,4 @@
-\section{Abstraction, Level One}
+N\section{Abstraction, Level One}
 \begin{verbatim}
 Copyright  Andrew Buttefield (c) 2018
 
@@ -18,22 +18,31 @@ Here we will present excerpts out-of-order, as we focus on specific aspects.
 \newpage
 \subsection{Expressions}
 
-We need to support Prism expressions.
+We need to support Prism expressions,
+plus our extensions
 \begin{code}
 data Expr
   = B Bool -- literal boolean
   | I Int    -- literal int
   | D Double -- literal double
-  | C Ident  -- constant name
-  | F String [Expr] -- generic function
+  | N Ident  -- variable/constant name
+  | F String -- function name /operator symbol
+      [Expr] -- function/operator arguments
+  | P Expr  -- probability
+      Expr  -- (update) expression
+  -- added stuff
+  | AI Expr  -- array-valued expression
+       Expr  -- array index
+  | AF [VDecl]  -- array indices declaration
+       String   -- operator symbol
+       Expr     -- array body expression/update
   deriving (Eq,Show,Read)
 
-isAtomic :: Expr -> Bool
-isAtomic (B _)  =  True
-isAtomic (I _)  =  True
-isAtomic (D _)  =  True
-isAtomic (C _)  =  True
-isAtomic _      =  False
+isNum :: Expr -> Bool
+isNum (I _)  =  True
+isNum (D _)  =  True
+isNum (N _)  =  True
+isNum _      =  False
 \end{code}
 
 Supported infix forms of \texttt{F} from \cite{KNP11},
@@ -62,8 +71,8 @@ infix  4 .!= ;  e1 .!= e2  =  F "!=" [e1,e2]
 infix  4 .<  ;  e1 .< e2   =  F "<"  [e1,e2]
 infix  4 .>  ;  e1 .> e2   =  F ">"  [e1,e2]
 infix  4 .>= ;  e1 .>= e2  =  F ">=" [e1,e2]
-infix  3 .&  ;  e1 .&  e2  =  F "&"  [e1,e2]
-infix  2 .|  ;  e1 .|  e2  =  F "|"  [e1,e2]
+infixl 3 .&  ;  e1 .&  e2  =  F "&"  [e1,e2]
+infixl 2 .|  ;  e1 .|  e2  =  F "|"  [e1,e2]
 infix  1 <=> ;  e1 <=> e2  =  F "<=>"[e1,e2]
 infix  0 .=> ;  e1 .=> e2  =  F "=>" [e1,e2]
 -- faking e0 .? e1 .: e2 -->
@@ -102,12 +111,21 @@ We have the integer type, range types, and array types.
 Prism also has boolean and double types, which we shall also include.
 \begin{code}
 type Ident = String -- identifiers
-type Number = Expr -- Atomic (I, D or C only)
+type Number = Expr -- Atomic (I, D or N only)
 data Type
   = BoolT | IntT | DblT -- basic types
   | RngT Number Number -- range type, lowest to highest
   | ArrT Number Number Type -- array type
   deriving (Eq,Show,Read)
+
+-- functions that enforce the use of Number, rather than Expr
+rngT n1 n2
+ | isNum n1 && isNum n2  =  RngT n1 n2
+ | otherwise  =  error "rngT: both expressions must be number or variable"
+
+arrT n1 n2 t
+ | isNum n1 && isNum n2  =  ArrT n1 n2 t
+ | otherwise  =  error "arrT: both expressions must be number or variable"
 \end{code}
 We note that \texttt{RngT} is a subtype of \texttt{IntT}.
 
@@ -172,17 +190,28 @@ const int SELECT = 3;
 const int FINISH = 4;
 \end{prism}
 \begin{code}
+_1 = I 1 ; _2 = I 2 ; _3 = I 3 ; _4 = I 4
 cdecl
   = [ Parameter "b" IntT
     , Parameter "p" IntT
     , Parameter "c" IntT
     , Parameter "w" IntT
     , Parameter "MAXDIFF" IntT
-    , Constant "INIT" IntT $ I 1
-    , Constant "WRITE" IntT $ I 2
-    , Constant "SELECT" IntT $ I 3
-    , Constant "FINISH" IntT $ I 4
+    , Constant "INIT" IntT _1
+    , Constant "WRITE" IntT _2
+    , Constant "SELECT" IntT _3
+    , Constant "FINISH" IntT _4
     ]
+ -- as (atomic) expressions
+b = N "b"
+p = N "p"
+c = N "c"
+w = N "w"
+_MAXDIFF = N "MAXDIFF"
+_INIT    = N "INIT"
+_WRITE   = N "WRITE"
+_SELECT  = N "SELECT"
+_FINISH  = N "FINISH"
 \end{code}
 
 \paragraph{Variables} from Prism, using array declarations
@@ -193,12 +222,18 @@ pc: [INIT..FINISH] init INIT;
 i: [0..c] init 0;
 \end{prism}
 \begin{code}
+_0 = I 0
 vdecl
-  = [ Var "fm_clean" $ ArrT (I 0) (C "b") $ RngT (I 0) (C "p")
-    , Var "fm_erase" $ ArrT (I 0) (C "b") $ RngT (I 0) (C "w")
-    , VInit "pc" (RngT (C "INIT") (C "FINISH")) $ C "INIT"
-    , VInit "i" (RngT (I 0) (C "c")) $ I 0
+  = [ Var "fm_clean" $ arrT _0 b $ rngT _0 p
+    , Var "fm_erase" $ arrT _0 b $ rngT _0 w
+    , VInit "pc" (rngT _INIT _FINISH) _INIT
+    , VInit "i" (rngT _0 c) _0
     ]
+ -- as atomic expressions
+fm_clean = N "fm_clean"
+fm_erase = N "fm_erase"
+pc       = N "pc"
+i        = N "i"
 \end{code}
 
 \newpage
@@ -292,6 +327,87 @@ formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
 We see the new \texttt{for}-construct, where expressions replace updates
 as well as having parameterised formul\ae.
 So far the parameters are only variables.
+So the general form is a formula-name,
+zero or more variable arguments,
+and a body-expression.
+We shall treat an update as an expression,
+that has dashed-forms of variables in it.
+\begin{code}
+data Formula
+  = Formula Ident [Ident] Expr
+  deriving (Eq,Show,Read)
+\end{code}
+
+\subsubsection{Formulas from Flash.prism}
+
+Rewritten ``our style'':
+\begin{prism}
+formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+\end{prism}
+\begin{code}
+_writeable
+  = Formula "writeable" []
+            $ AF [Var "x" (rngT _1 b)]
+                 "+"
+                 (AI fm_clean (N "x") .!= _0 .? _1 .: _0)
+writeable = N "writeable"
+\end{code}
+\begin{prism}
+formula dirty(x) = p-fm_clean[x];
+\end{prism}
+\begin{code}
+_dirty
+  = Formula "dirty" ["x"]
+            (p .- AI fm_clean (N "x"))
+dirty e = F "dirty" [e]
+\end{code}
+\begin{prism}
+formula cand(x,y) = x!=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+\end{prism}
+\begin{code}
+_cand
+  = Formula "cand" ["x","y"]
+            ( N "x" .!= N "y" .&
+              dirty(N "x") .> _0 .&
+              AI fm_clean (N "x") .>= F "dirty" [N "x"] )
+cand (e, f) = F "cand" [e,f]
+\end{code}
+\begin{prism}
+formula candidates = for x,y:[1..b] apply + to (x!=y & cand(x,y)?1:0);
+\end{prism}
+\begin{code}
+_candidates
+  = Formula "candidates" []
+            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
+                 "+"
+                 ( N "x" .!= N "y" .&
+                   cand (N "x", N "y") .? _1 .: _0 )
+candidates = N "candidates"
+\end{code}
+\begin{prism}
+formula diff(x,y) = fm_erase(x)-fm_erase(y);
+\end{prism}
+\begin{code}
+_diff
+  = Formula "diff" ["x","y"]
+            ( AI fm_erase (N "x") .- AI fm_erase (N "y") )
+diff (e,f) = F "diff" [e,f]
+\end{code}
+\begin{prism}
+formula toobig = for x,y:[1..b] apply | to (x!=y & diff(x,y) >= MAXDIFF)
+\end{prism}
+\begin{code}
+_toobig
+  = Formula "toobig" []
+            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
+                 "|"
+                 ( N "x" .!= N "y" .&
+                   diff(N "x", N "y") .>= _MAXDIFF )
+toobig = N "toobig"
+\end{code}
+\begin{code}
+formulae = [_writeable,_dirty,_cand,_candidates,_diff,_toobig]
+\end{code}
 
 \newpage
 \subsection{The Big Picture}
@@ -303,6 +419,8 @@ abs1
        putlist cdecl
        putStrLn "Variable Declarations:"
        putlist vdecl
+       putStrLn "Formulae"
+       putlist formulae
        putStrLn "Also try ':browse Abs1' for now."
   where
     putlist xs = sequence_ $ map putthing xs
