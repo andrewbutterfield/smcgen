@@ -541,15 +541,33 @@ abs1 (cdcl,vdcl,form,cmmds) fixedpars
   = do let code = unlines (
              [    "// Abs1 under development:"
              ,  ( "\n// Fixed Parameters are "++show fixedpars ) ]
-             ++ ( "\n// Constant Decls:\n// -----"   : (showlist cdcl)  )
+             ++ ( "\n// Constant Decls:\n// -----"
+                  : (prismKs fixedpars cdcl)  )
              ++ ( "\n// Variable Decls:\n// -----"   : showlist vdcl  )
              ++ ( "\n// Formulae:\n// -----"         : showlist form  )
              ++ ( "\n// Commands:\n// -----"         : showlist cmmds )
              ++ [ "\n// Also try ':browse Abs1' for now."] )
        putStrLn code
-  where
-    showlist :: Show a => [a] -> [String]
-    showlist xs = map showthing xs
-    showthing :: Show a => a -> String
-    showthing x = "  //  " ++  show x
+
+showlist :: Show a => [a] -> [String]
+showlist xs = map showthing xs
+showthing :: Show a => a -> String
+showthing x = "  //  " ++  show x
+\end{code}
+
+\subsubsection{Generating Prism Constants}
+
+\begin{code}
+prismKs :: [(String,Int)] -> [CDecl] -> [String]
+prismKs fpars = map (prismK fpars)
+
+prismK ::[(String,Int)] -> CDecl -> String
+prismK fpars (Constant id typ num) -- const int INIT = 1;
+  = "const "++prismT typ++" "++id++" = "++prismE num++";"
+prismK fpars (Parameter id typ) -- const int p;
+  = "const "++prismT typ++" "++id++";"
+
+prismT typ = show typ
+
+prismE num = show num
 \end{code}
