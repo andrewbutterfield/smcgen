@@ -232,8 +232,8 @@ i: [0..c] init 0;
 \begin{code}
 _0 = I 0
 vdecl
-  = [ Var "fm_clean" $ arrT _0 b $ rngT _0 p
-    , Var "fm_erase" $ arrT _0 b $ rngT _0 w
+  = [ Var "fm_clean" $ arrT _1 b $ rngT _0 p
+    , Var "fm_erase" $ arrT _1 b $ rngT _0 w
     , VInit "pc" (rngT _INIT _FINISH) _INIT
     , VInit "i" (rngT _0 c) _0
     ]
@@ -520,9 +520,10 @@ commands = [cmd1,cmd2,cmd3,cmd4,cmd5,cmd6,cmd7]
 \subsubsection{The Big Picture}
 
 \begin{code}
-type Prism1 = ( [CDecl], [VDecl], [Formula], [Command] )
+type Module1 = (Ident, [VDecl], [Command])
+type Prism1 = ( [CDecl], [Module1], [Formula] )
 
-prism1 = (cdecl,vdecl,formulae,commands)
+prism1 = (cdecl, [("Flash",vdecl,commands)], formulae)
 \end{code}
 
 \newpage
@@ -537,16 +538,17 @@ that need fixing, along with suggested values.
 
 \begin{code}
 abs1 :: Prism1 -> [(String,Int)] -> IO ()
-abs1 (cdcl,vdcl,form,cmmds) fixedpars
-  = do let code = unlines (
+abs1 (cdcl,ms@[(nm,vdcl,cmmds)],form) fixedpars
+  = do let parsf = alookup fixedpars
+       let code = unlines (
              [    "// Abs1 under development:"
              ,  ( "\n// Fixed Parameters are "++show fixedpars ) ]
              ++ ( "\n// Constant Decls:\n// -----"
-                  : (prismKs fixedpars cdcl)  )
-             ++ ( "\n// Variable Decls:\n// -----"   : showlist vdcl  )
-             ++ ( "\n// Formulae:\n// -----"         : showlist form  )
-             ++ ( "\n// Commands:\n// -----"         : showlist cmmds )
-             ++ [ "\n// Also try ':browse Abs1' for now."] )
+                  : prismKs parsf cdcl  )
+             ++ ( "\n// Module Decls:\n// -----"
+                  : prismMs parsf ms  )
+             ++ ( "\n// Formulae:\n// -----"
+                  : prismFs parsf form  ) )
        putStrLn code
 
 showlist :: Show a => [a] -> [String]
@@ -556,18 +558,114 @@ showthing x = "  //  " ++  show x
 \end{code}
 
 \subsubsection{Generating Prism Constants}
-
 \begin{code}
-prismKs :: [(String,Int)] -> [CDecl] -> [String]
+prismKs :: (String -> Maybe Int) -> [CDecl] -> [String]
 prismKs fpars = map (prismK fpars)
 
-prismK ::[(String,Int)] -> CDecl -> String
+prismK :: (String -> Maybe Int)-> CDecl -> String
 prismK fpars (Constant id typ num) -- const int INIT = 1;
-  = "const "++prismT typ++" "++id++" = "++prismE num++";"
+  = "const "++prismT fpars typ++" "++id++" = "++prismE fpars num++";"
 prismK fpars (Parameter id typ) -- const int p;
-  = "const "++prismT typ++" "++id++";"
+  = case fpars id of
+      Nothing  ->  "const "++prismT fpars typ++" "++id++";"
+      Just n   ->  "const "++prismT fpars typ++" "++id++" = "++show n++";"
+\end{code}
 
-prismT typ = show typ
+\subsubsection{Generating Prism Modules}
+\begin{code}
+prismMs :: (String -> Maybe Int) -> [Module1] -> [String]
+prismMs fpars = concat . map (prismM fpars)
 
-prismE num = show num
+prismM :: (String -> Maybe Int)-> Module1 -> [String]
+prismM parsf (nm, vdcl, cmmds)
+  = ( "\nmodule "++ nm )
+     : ( "\n// Variable Decls:\n// -----"
+          : prismVs parsf vdcl
+    ++ ( "\n// Commands:\n// -----"
+          : prismCs parsf cmmds )
+    ++ [ "\nendmodule\n"] )
+\end{code}
+
+
+\subsubsection{Generating Prism Variables}
+\begin{code}
+prismVs :: (String -> Maybe Int) -> [VDecl] -> [String]
+prismVs fpars = map ((++";") . prismV fpars)
+
+prismV fpars (Var id typ)
+ = id ++ ": " ++ prismT fpars typ
+prismV fpars (VInit id typ exp)
+ = id ++ ": " ++ prismT fpars typ ++ " init "++prismE fpars exp
+\end{code}
+
+\subsubsection{Generating Prism Commands}
+\begin{code}
+prismCs :: (String -> Maybe Int) -> [Command] -> [String]
+prismCs fpars = concat . map (prismC fpars)
+
+prismC fpars (Cmd syncs grd upd)
+  = [ '\n':show syncs ++ " " ++ prismE fpars grd ++ " ->"
+    , prismE fpars upd ]
+\end{code}
+
+\subsubsection{Generating Prism Formul\ae}
+\begin{code}
+prismFs :: (String -> Maybe Int) -> [Formula] -> [String]
+prismFs fpars = map (prismF fpars)
+
+prismF fpars (Formula nm [] body)
+  = "\nformula "++nm++" = "++prismE fpars body
+prismF fpars (Formula nm args body)
+  = "\nformula "++nm++"("++intercalate "," args++") = " ++prismE fpars body
+\end{code}
+
+\subsubsection{Generating Prism Types}
+\begin{code}
+prismT fpars BoolT = "bool"
+prismT fpars IntT = "int"
+prismT fpars DblT = "double"
+prismT fpars (RngT n1 n2) = "["++prismE fpars n1++".."++prismE fpars n2++"]"
+prismT fpars (ArrT n1 n2 typ)
+  = "array ["++prismE fpars n1++".."++prismE fpars n2++"] of "
+     ++ prismT fpars typ
+\end{code}
+
+\subsubsection{Generating Prism Expressions}
+\begin{code}
+prismE :: (String -> Maybe Int) -> Expr -> String
+prismE fpars expr
+  = prismE' 0 expr
+  where
+    -- for array declarations
+    prismAD idcls = intercalate "," $ map (prismV fpars) idcls
+
+    prismE' p (B b)  =  if b then "true" else "false"
+    prismE' p (I i)  = show i
+    prismE' p (D d)  = show d
+    prismE' p (N n)  = n
+    prismE' p (N' n)  = n ++ "'"
+    prismE' p (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' p expr
+    prismE' p (AI arr idx) = prismE' p arr ++ "["++prismE' 0 idx++"]"
+    prismE' p (AF idcls op expr)
+     =    "\n  for " ++ prismAD idcls ++ " apply " ++ op
+       ++ "\n   to " ++ prismE' 0 expr
+\end{code}
+
+The treatment of function/operators is complicated.
+\begin{code}
+    prismE' p (F "?:" [c,t,e])
+     = "("++prismE' 0 c++" ? "++prismE' 0 t++" : "++prismE' 0 e++")"
+    prismE' p (F op [e1,e2])
+     = "("++prismE' p e1++" "++op++""++prismE' p e2++")"
+    prismE' p (F f es) = f ++ "("++(intercalate "," $ map (prismE' 0) es)++")"
+\end{code}
+
+\subsection{Random Code bits}
+
+\begin{code}
+alookup :: (Eq a, Monad m) => [(a,b)] -> a -> m b
+alookup [] _ = fail "not found"
+alookup ((x,y):xys) z
+ | z == x  =  return y
+ | otherwise  = alookup xys z
 \end{code}
