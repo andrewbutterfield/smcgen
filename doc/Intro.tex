@@ -1,0 +1,19 @@
+\section{Introduction}\label{sec:intro}
+
+This document is a record of the development of a process
+to specify probabilistic models at a high level of abstraction.
+It started with a concrete Prism model of Flash Memory (\S\ref{sec:FlashPM}),
+where one parameter (\prsm{b})
+had to be fixed (\prsm{b=3}).
+because of the limitations of the Prism language.
+
+The process involves successive levels of abstraction:
+\begin{itemize}
+  \item
+    Hacking the prism model to work with \prsm{b >=  2}
+    (\S\ref{sec:lhs:Hack}).
+  \item
+    First level of abstraction:
+    identifying the necessary language support for arrays
+    (\S\ref{sec:lhs:Abs1}).
+\end{itemize}

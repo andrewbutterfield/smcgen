@@ -1,13 +1,15 @@
-\section{Hacking}
+\section{Hacking}\label{sec:lhs:Hack}
 \begin{verbatim}
 Copyright  Andrew Buttefield (c) 2018
 
 LICENSE: BSD3, see file LICENSE at smcgen root
 \end{verbatim}
 \begin{code}
-module Hack where
+module Hack (hack) where
 import Data.List
 \end{code}
+
+\subsection{Top Level}
 
 Currently we are hacking ways to generalise \texttt{Flash.prism}
 from having parameter \texttt{b} fixed equal to 3.
@@ -26,8 +28,6 @@ prismcode b
      , diff b, toobig b ]
 \end{code}
 
-
-
 \begin{prism}
 dtmc
 \end{prism}
@@ -35,7 +35,7 @@ dtmc
 sem = ["dtmc"]
 \end{code}
 
-
+\subsection{Constant Declarations}
 
 \begin{prism}
 const int b=3; // Block Count: Our problematic parameter
@@ -53,8 +53,6 @@ params b
     , "const int MAXDIFF; // Maximum desired difference in wear across blocks."
   ]
 \end{code}
-
-
 
 \begin{prism}
 // control flow
@@ -74,6 +72,8 @@ control
 \end{code}
 
 
+\subsection{Module Declaration}
+
 
 \begin{prism}
 module Flash
@@ -83,6 +83,7 @@ mdl b = [ "module Flash"++show b ]
 \end{code}
 
 
+\subsubsection{Variable declarations}
 
 \begin{prism}
 // fm_clean_i, for i in 1..b - the number of clean pages in block i
@@ -112,7 +113,7 @@ vars b
 idecl root typ i = root ++ show i ++ typ
 \end{code}
 
-
+\subsubsection{Command Definitions}
 
 \begin{prism}
 // Step 1
@@ -264,7 +265,7 @@ endmodule
 endm = [ "endmodule" ]
 \end{code}
 
-
+\subsection{Formula Definitions}
 
 \begin{prism}
 // a block is writeable if it has at least one clean page

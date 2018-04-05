@@ -1,4 +1,4 @@
-\section{Main Program}
+\section{Main Program}\label{sec:lhs:Main}
 \begin{verbatim}
 Copyright  Andrew Buttefield (c) 2018
 
@@ -10,5 +10,5 @@ import Hack
 import Abs1
 
 main :: IO ()
-main = abs1 -- sequence_ $ map hack [2..8]
+main = abs1 prism1 [("b",3)]
 \end{code}

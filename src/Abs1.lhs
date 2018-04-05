@@ -1,11 +1,12 @@
-\section{Abstraction, Level One}
+\section{Abstraction, Level One}\label{sec:lhs:Abs1}
+
 \begin{verbatim}
 Copyright  Andrew Buttefield (c) 2018
 
 LICENSE: BSD3, see file LICENSE at smcgen root
 \end{verbatim}
 \begin{code}
-module Abs1 where
+module Abs1 ( prism1, abs1 ) where
 import Data.List
 \end{code}
 
@@ -14,6 +15,10 @@ but focus instead on structure,
 including declarations, control-flow, and formul\ae.
 
 Here we will present excerpts out-of-order, as we focus on specific aspects.
+For now, definitions of abstract syntax, useful (Haskell) constants,
+and the encoding of the Flash model are all interleaved.
+
+Eventually these will all be factored out into their own sections.
 
 \newpage
 \subsection{Expressions}
@@ -505,150 +510,46 @@ cmd6 = Cmd [] (pc .= _SELECT .& candidates .!= _0 .& can_erase)
 [] pc=FINISH -> true;
 \end{prism}
 \begin{code}
-cmd7 = Cmd [] (pc .= _FINISH) (B True)
+true = B True
+cmd7 = Cmd [] (pc .= _FINISH) true
 \end{code}
 \begin{code}
 commands = [cmd1,cmd2,cmd3,cmd4,cmd5,cmd6,cmd7]
 \end{code}
 
-\newpage
-\subsection{The Big Picture}
+\subsubsection{The Big Picture}
 
 \begin{code}
-abs1
-  = do putStrLn "Abs1 under development:"
-       putStrLn "\nConstant Declarations:\n-----"
-       putlist cdecl
-       putStrLn "\nVariable Declarations:\n-----"
-       putlist vdecl
-       putStrLn "\nFormulae:\n-----"
-       putlist formulae
-       putStrLn "\nCommands:\n-----"
-       putlist commands
-       putStrLn "\nAlso try ':browse Abs1' for now."
-  where
-    putlist xs = sequence_ $ map putthing xs
-    putthing :: Show t => t -> IO ()
-    putthing x = putStrLn $ ("  "++) $ show x
+type Prism1 = ( [CDecl], [VDecl], [Formula], [Command] )
+
+prism1 = (cdecl,vdecl,formulae,commands)
 \end{code}
 
-\subsubsection{Original Prism Code}
+\newpage
+\subsection{Generating Prism}
 
-As a holding position, here is all of \texttt{Flash.prism}:
-\begin{prism}
-dtmc
+In order to generate Prism,
+we know we have to fix \prsm{b},
+but can allow other constants to remain underspecified.
+At this level of abstraction,
+we assume some oracle (us!) that can supply a list of constants
+that need fixing, along with suggested values.
 
-const int b=3; // Block Count: Our problematic parameter
-const int p; // Pages per Block
-const int c; // Number of page writes between wear levelling
-const int w; // Maximum wear tolerance (no. of erasures)
-const int MAXDIFF; // Maximum desired difference in wear across blocks.
-// control flow
-const int INIT = 1;    // startup
-const int WRITE = 2;   // page writes
-const int SELECT = 3;  // wear-levelling
-const int FINISH = 4;  // done: memory full or worn out
-
-module Flash
-
-// fm_clean_i, for i in 1..b - the number of clean pages in block i
-fm_clean_1: [0..p];
-fm_clean_2: [0..p];
-fm_clean_3: [0..p];
-// fm_erase_i, i in 1..b, the number of times block i has been erased.
-fm_erase_1: [0..w];
-fm_erase_2: [0..w];
-fm_erase_3: [0..w];
-
-pc: [INIT..FINISH] init INIT;
-// count the number of page writes done since last wear-levelling.
-i: [0..c] init 0;
-
-// Step 1
-[] pc=INIT ->
-  (fm_clean_1'=p) & (fm_clean_2'=p) & (fm_clean_3'=p) &
-  (fm_erase_1'=0) & (fm_erase_2'=0) & (fm_erase_3'=0) &
-  (pc'=WRITE);
-// Step 2
-[] pc=WRITE & i<c & writeable!=0 ->
-  (fm_clean_1>0?1/writeable:0): (fm_clean_1'=fm_clean_1-1) & (i'=i+1) +
-  (fm_clean_2>0?1/writeable:0): (fm_clean_2'=fm_clean_2-1) & (i'=i+1) +
-  (fm_clean_3>0?1/writeable:0): (fm_clean_3'=fm_clean_3-1) & (i'=i+1);
-// Step 3
-[] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
-// Step 4
-[] pc=WRITE & i=c -> (pc'=SELECT);
-// Step 5
-[] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);
-// Step 6
-[] pc=SELECT & candidates!=0 & can_erase ->
-  (cand_1_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_1) &
-                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
-                                 (i'=0) & (pc'=WRITE) +
-  (cand_1_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_1) &
-                                 (fm_clean_1'=p) & (fm_erase_1'=fm_erase_1+1) &
-                                 (i'=0) & (pc'=WRITE) +
-  (cand_2_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_2) &
-                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
-                                 (i'=0) & (pc'=WRITE) +
-  (cand_2_3 ? 1/candidates : 0): (fm_clean_3'=fm_clean_3-dirty_2) &
-                                 (fm_clean_2'=p) & (fm_erase_2'=fm_erase_2+1) &
-                                 (i'=0) & (pc'=WRITE) +
-  (cand_3_1 ? 1/candidates : 0): (fm_clean_1'=fm_clean_1-dirty_3) &
-                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
-                                 (i'=0) & (pc'=WRITE) +
-  (cand_3_2 ? 1/candidates : 0): (fm_clean_2'=fm_clean_2-dirty_3) &
-                                 (fm_clean_3'=p) & (fm_erase_3'=fm_erase_3+1) &
-                                 (i'=0) & (pc'=WRITE);
-// Step 7
-[] pc=FINISH -> true;
-
-endmodule
-
-// a block is writeable if it has at least one clean page
-// We need to know how many of these there are.
-formula writeable = (fm_clean_1!=0 ? 1 : 0) +  (fm_clean_2!=0 ? 1 : 0)
-                  + (fm_clean_3!=0 ? 1 : 0);
-
-// dirty_i, for i in 1..b - number of dirty pages in block i
-formula dirty_1 = p-fm_clean_1;
-formula dirty_2 = p-fm_clean_2;
-formula dirty_3 = p-fm_clean_3;
-
-// cand_i_j, for i,j in 1..b, i /= j
-//  block i is dirty but there is space in block j for its pages
-formula cand_1_2 = dirty_1>0 & fm_clean_2 >= dirty_1;
-formula cand_1_3 = dirty_1>0 & fm_clean_3 >= dirty_1;
-formula cand_2_1 = dirty_2>0 & fm_clean_1 >= dirty_2;
-formula cand_2_3 = dirty_2>0 & fm_clean_3 >= dirty_2;
-formula cand_3_1 = dirty_3>0 & fm_clean_1 >= dirty_3;
-formula cand_3_2 = dirty_3>0 & fm_clean_2 >= dirty_3;
-
-// the number of ways in which we can relocate dirty pages from one block
-// to another so we can erase (clean) the first block.
-formula candidates =
-  (cand_1_2?1:0) + (cand_1_3?1:0) + (cand_2_1?1:0) +
-  (cand_2_3?1:0) + (cand_3_1?1:0) + (cand_3_2?1:0);
-
-// true when it is still possibe to erase ANY block,
-// without exceeding the maximum allowable erase operations.
-formula can_erase = fm_erase_1<w & fm_erase_2<w & fm_erase_3<w;
-
-// diff_i_j, for i,j in 1..b, i /= j
-// the difference in number of erasure of blocks i and j
-formula diff_1_2 = fm_erase_1-fm_erase_2;
-formula diff_1_3 = fm_erase_1-fm_erase_3;
-formula diff_2_1 = fm_erase_2-fm_erase_1;
-formula diff_2_3 = fm_erase_2-fm_erase_3;
-formula diff_3_1 = fm_erase_3-fm_erase_1;
-formula diff_3_2 = fm_erase_3-fm_erase_2;
-
-// true if difference in wear equals some limit.
-formula toobig =
-  diff_1_2 >= MAXDIFF |
-  diff_1_3 >= MAXDIFF |
-  diff_2_1 >= MAXDIFF |
-  diff_2_3 >= MAXDIFF |
-  diff_3_1 >= MAXDIFF |
-  diff_3_2 >= MAXDIFF;
-\end{prism}
+\begin{code}
+abs1 :: Prism1 -> [(String,Int)] -> IO ()
+abs1 (cdcl,vdcl,form,cmmds) fixedpars
+  = do let code = unlines (
+             [    "// Abs1 under development:"
+             ,  ( "\n// Fixed Parameters are "++show fixedpars ) ]
+             ++ ( "\n// Constant Decls:\n// -----"   : (showlist cdcl)  )
+             ++ ( "\n// Variable Decls:\n// -----"   : showlist vdcl  )
+             ++ ( "\n// Formulae:\n// -----"         : showlist form  )
+             ++ ( "\n// Commands:\n// -----"         : showlist cmmds )
+             ++ [ "\n// Also try ':browse Abs1' for now."] )
+       putStrLn code
+  where
+    showlist :: Show a => [a] -> [String]
+    showlist xs = map showthing xs
+    showthing :: Show a => a -> String
+    showthing x = "  //  " ++  show x
+\end{code}
