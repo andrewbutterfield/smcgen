@@ -106,6 +106,24 @@ infix  0 .?  ;  e0 .? es   =   F "?:"  (e0:es)
 isInfix [c] = c `elem` "/*+-=<>&|"
 isInfix nm = nm `elem` ["!=",">=","<=","<=>","=>"]
 
+-- infix operator precedences
+prec "/"    =  7
+prec "*"    =  7
+prec "+"    =  6
+prec "-"    =  6
+prec "="    =  5
+prec "!="   =  5
+prec "<"    =  5
+prec ">"    =  5
+prec ">="   =  5
+prec "<="   =  5
+prec "&"    =  4
+prec "|"    =  3
+prec "<=>"  =  2
+prec "=>"   =  1
+prec _      =  0
+
+
 lnot e = F "!" [e]
 \end{code}
 
@@ -552,10 +570,11 @@ commands = [cmd1,cmd2,cmd3,cmd4,cmd5,cmd6,cmd7]
 \subsubsection{The Big Picture}
 
 \begin{code}
+data SemModel = DTMC | Others deriving (Eq, Show, Read)
 type Module1 = (Ident, [VDecl], [Command])
-type Prism1 = ( [CDecl], [Module1], [Formula] )
+type Prism1 = (SemModel,[CDecl], [Module1], [Formula] )
 
-prism1 = (cdecl, [("Flash",vdecl,commands)], formulae)
+prism1 = (DTMC, cdecl, [("Flash",vdecl,commands)], formulae)
 \end{code}
 
 \newpage
@@ -570,10 +589,11 @@ that need fixing, along with suggested values.
 
 \begin{code}
 prism1code  :: Prism1 -> [(String,Int)] -> String
-prism1code (cdcl,ms@[(nm,vdcl,cmmds)],form) fixedpars
+prism1code (smod,cdcl,ms@[(nm,vdcl,cmmds)],form) fixedpars
   = let parsf = alookup fixedpars in
      unlines (
-       [    "// Abs1 under development:"
+       [    "// Abs1 under development"
+       ,  prismSM smod
        ,  ( "\n// Fixed Parameters are "++show fixedpars ) ]
        ++ ( "\n// Constant Decls:\n// -----"
             : prismKs parsf cdcl  )
@@ -581,6 +601,9 @@ prism1code (cdcl,ms@[(nm,vdcl,cmmds)],form) fixedpars
             : prismMs parsf ms  )
        ++ ( "\n// Formulae:\n// -----"
             : prismFs parsf form  ) )
+
+prismSM DTMC = "dtmc"
+prismSM _ = "// unknown semantic model !"
 \end{code}
 
 \subsubsection{Generating Prism Constants}
@@ -666,26 +689,31 @@ prismE fpars expr
     -- for array declarations
     prismAD idcls = intercalate "," $ map (prismV fpars) idcls
 
-    prismE' p (B b)  =  if b then "true" else "false"
-    prismE' p (I i)  = show i
-    prismE' p (D d)  = show d
-    prismE' p (N n)  = n
-    prismE' p (N' n)  = n ++ "'"
-    prismE' p (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' p expr
-    prismE' p (AI arr idx) = prismE' p arr ++ "["++prismE' 0 idx++"]"
-    prismE' p (AF idcls op expr)
+    prismE' pc (B b)  =  if b then "true" else "false"
+    prismE' pc (I i)  = show i
+    prismE' pc (D d)  = show d
+    prismE' pc (N n)  = n
+    prismE' pc (N' n)  = n ++ "'"
+    prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' pc expr
+    prismE' pc (AI arr idx) = prismE' pc arr ++ "["++prismE' 0 idx++"]"
+    prismE' pc (AF idcls op expr)
      =    "\n  for " ++ prismAD idcls ++ " apply " ++ op
        ++ "\n   to " ++ prismE' 0 expr
 \end{code}
 
 The treatment of function/operators is complicated.
 \begin{code}
-    prismE' p (F "?:" [c,t,e])
+    prismE' pc (F "?:" [c,t,e])
      = "("++prismE' 0 c++" ? "++prismE' 0 t++" : "++prismE' 0 e++")"
-    prismE' p (F op es)
+    prismE' pc (F op es)
       | isInfix op
-        = "(" ++ (intercalate (' ':op++" ") $ map (prismE' p) es) ++")"
-    prismE' p (F f es) = f ++ "("++(intercalate "," $ map (prismE' 0) es)++")"
+        =  bracket pc pop (intercalate (' ':op++" ") $ map (prismE' pop) es)
+      where pop = prec op
+    prismE' pc (F f es) = f ++ "("++(intercalate "," $ map (prismE' 0) es)++")"
+
+bracket pc pop str -- pc: context precedence, pop: operator precedence
+ | pop < pc   =  "("++str++")"
+ | otherwise  =  str
 \end{code}
 
 \subsection{Random Code bits}
