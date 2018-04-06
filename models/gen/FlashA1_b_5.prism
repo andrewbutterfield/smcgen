@@ -1,11 +1,11 @@
 // Abs1 under development
 dtmc
 
-// Fixed Parameters are [("b",8)]
+// Fixed Parameters are [("b",5)]
 
 // Constant Decls:
 // -----
-const int b = 8;
+const int b = 5;
 const int p;
 const int c;
 const int w;
@@ -27,17 +27,11 @@ fm_clean_2: [0..p];
 fm_clean_3: [0..p];
 fm_clean_4: [0..p];
 fm_clean_5: [0..p];
-fm_clean_6: [0..p];
-fm_clean_7: [0..p];
-fm_clean_8: [0..p];
 fm_erase_1: [0..w];
 fm_erase_2: [0..w];
 fm_erase_3: [0..w];
 fm_erase_4: [0..w];
 fm_erase_5: [0..w];
-fm_erase_6: [0..w];
-fm_erase_7: [0..w];
-fm_erase_8: [0..w];
 pc: [INIT..FINISH] init INIT;
 i: [0..c] init 0;
 
