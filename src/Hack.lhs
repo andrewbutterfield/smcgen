@@ -16,7 +16,7 @@ from having parameter \texttt{b} fixed equal to 3.
 \begin{code}
 hack b
  | b < 2 = putStrLn "smcgen with b less than two is somewhat pointless"
- | otherwise = writeFile ("models/gen/Flash"++show b++".prism") $ prismcode b
+ | otherwise = writeFile ("models/gen/FlashH_b_"++show b++".prism") $ prismcode b
 
 prismcode b
  = unlines $ intercalate [""]

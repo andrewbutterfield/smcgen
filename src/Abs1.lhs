@@ -20,6 +20,23 @@ and the encoding of the Flash model are all interleaved.
 
 Eventually these will all be factored out into their own sections.
 
+\subsection{Top Level}
+
+\begin{code}
+abs1 :: Prism1 -> [(String,Int)] -> IO ()
+abs1 prsm fixedpars
+  = do let code = prism1code prsm fixedpars
+       putStrLn code
+       let fname = "models/gen/FlashA1"++showpars++".prism"
+       writeFile fname code
+       putStrLn ("Prism written to "++fname)
+  where
+    showpars = concat $ map showpar fixedpars
+    showpar (s,i) = '_':s ++ '_':show i
+\end{code}
+
+
+
 \newpage
 \subsection{Expressions}
 
@@ -68,24 +85,39 @@ the most strongly binding first:
 \end{verbatim}
 For now, the ones in use in this example:
 \begin{code}
-infixl 7 ./  ;  e1 ./ e2   =  F "/"  [e1,e2]
-infixl 7 .*  ;  e1 .* e2   =  F "*"  [e1,e2]
-infixl 6 .+  ;  e1 .+ e2   =  F "+"  [e1,e2]
-infixl 6 .-  ;  e1 .- e2   =  F "-"  [e1,e2]
-infix  4 .=  ;  e1 .= e2   =  F "="  [e1,e2]
-infix  4 .!= ;  e1 .!= e2  =  F "!=" [e1,e2]
-infix  4 .<  ;  e1 .< e2   =  F "<"  [e1,e2]
-infix  4 .>  ;  e1 .> e2   =  F ">"  [e1,e2]
-infix  4 .>= ;  e1 .>= e2  =  F ">=" [e1,e2]
-infixl 3 .&  ;  e1 .&  e2  =  F "&"  [e1,e2]
-infixl 2 .|  ;  e1 .|  e2  =  F "|"  [e1,e2]
-infix  1 <=> ;  e1 <=> e2  =  F "<=>"[e1,e2]
-infix  0 .=> ;  e1 .=> e2  =  F "=>" [e1,e2]
+infixl 7 ./  ;  e1 ./ e2   =   F "/"   [e1,e2]
+infixl 7 .*  ;  e1 .* e2   =  aF "*"   [e1,e2]
+infixl 6 .+  ;  e1 .+ e2   =  aF "+"   [e1,e2]
+infixl 6 .-  ;  e1 .- e2   =  aF "-"   [e1,e2]
+infix  4 .=  ;  e1 .= e2   =   F "="   [e1,e2]
+infix  4 .!= ;  e1 .!= e2  =   F "!="  [e1,e2]
+infix  4 .<  ;  e1 .< e2   =   F "<"   [e1,e2]
+infix  4 .>  ;  e1 .> e2   =   F ">"   [e1,e2]
+infix  4 .>= ;  e1 .>= e2  =   F ">="  [e1,e2]
+infix  4 .<= ;  e1 .<= e2  =   F "<="  [e1,e2]
+infixl 3 .&  ;  e1 .&  e2  =  aF "&"   [e1,e2]
+infixl 2 .|  ;  e1 .|  e2  =  aF "|"   [e1,e2]
+infix  1 <=> ;  e1 <=> e2  =   F "<=>" [e1,e2]
+infix  0 .=> ;  e1 .=> e2  =   F "=>"  [e1,e2]
 -- faking e0 .? e1 .: e2 -->
-infix  1 .:  ;  e1 .: e2   =         [e1,e2]
-infix  0 .?  ;  e0 .? es   =  F "?:" (e0:es)
+infix  1 .:  ;  e1 .: e2   =           [e1,e2]
+infix  0 .?  ;  e0 .? es   =   F "?:"  (e0:es)
+
+isInfix [c] = c `elem` "/*+-=<>&|"
+isInfix nm = nm `elem` ["!=",">=","<=","<=>","=>"]
 
 lnot e = F "!" [e]
+\end{code}
+
+We have defined a number of functions that optimise certain
+situations, so that, for example, $a + (b + c)$ becomes $a + b + c$
+\begin{code}
+aF nm es = F nm $ assocflat nm es
+
+assocflat _ [] = []
+assocflat nm (F nm' es':es)
+ | nm' == nm  =  es' ++ assocflat nm es
+assocflat nm (e:es) = e : assocflat nm es
 \end{code}
 
 \newpage
@@ -537,24 +569,18 @@ we assume some oracle (us!) that can supply a list of constants
 that need fixing, along with suggested values.
 
 \begin{code}
-abs1 :: Prism1 -> [(String,Int)] -> IO ()
-abs1 (cdcl,ms@[(nm,vdcl,cmmds)],form) fixedpars
-  = do let parsf = alookup fixedpars
-       let code = unlines (
-             [    "// Abs1 under development:"
-             ,  ( "\n// Fixed Parameters are "++show fixedpars ) ]
-             ++ ( "\n// Constant Decls:\n// -----"
-                  : prismKs parsf cdcl  )
-             ++ ( "\n// Module Decls:\n// -----"
-                  : prismMs parsf ms  )
-             ++ ( "\n// Formulae:\n// -----"
-                  : prismFs parsf form  ) )
-       putStrLn code
-
-showlist :: Show a => [a] -> [String]
-showlist xs = map showthing xs
-showthing :: Show a => a -> String
-showthing x = "  //  " ++  show x
+prism1code  :: Prism1 -> [(String,Int)] -> String
+prism1code (cdcl,ms@[(nm,vdcl,cmmds)],form) fixedpars
+  = let parsf = alookup fixedpars in
+     unlines (
+       [    "// Abs1 under development:"
+       ,  ( "\n// Fixed Parameters are "++show fixedpars ) ]
+       ++ ( "\n// Constant Decls:\n// -----"
+            : prismKs parsf cdcl  )
+       ++ ( "\n// Module Decls:\n// -----"
+            : prismMs parsf ms  )
+       ++ ( "\n// Formulae:\n// -----"
+            : prismFs parsf form  ) )
 \end{code}
 
 \subsubsection{Generating Prism Constants}
@@ -601,11 +627,12 @@ prismV fpars (VInit id typ exp)
 \subsubsection{Generating Prism Commands}
 \begin{code}
 prismCs :: (String -> Maybe Int) -> [Command] -> [String]
-prismCs fpars = concat . map (prismC fpars)
+prismCs fpars = map (prismC fpars)
 
 prismC fpars (Cmd syncs grd upd)
-  = [ '\n':show syncs ++ " " ++ prismE fpars grd ++ " ->"
-    , prismE fpars upd ]
+  = '\n':show syncs
+    ++ " "    ++ prismE fpars grd
+    ++ " -> " ++ prismE fpars upd
 \end{code}
 
 \subsubsection{Generating Prism Formul\ae}
@@ -655,8 +682,9 @@ The treatment of function/operators is complicated.
 \begin{code}
     prismE' p (F "?:" [c,t,e])
      = "("++prismE' 0 c++" ? "++prismE' 0 t++" : "++prismE' 0 e++")"
-    prismE' p (F op [e1,e2])
-     = "("++prismE' p e1++" "++op++""++prismE' p e2++")"
+    prismE' p (F op es)
+      | isInfix op
+        = "(" ++ (intercalate (' ':op++" ") $ map (prismE' p) es) ++")"
     prismE' p (F f es) = f ++ "("++(intercalate "," $ map (prismE' 0) es)++")"
 \end{code}
 

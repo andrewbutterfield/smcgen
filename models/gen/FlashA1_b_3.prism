@@ -1,0 +1,78 @@
+// Abs1 under development:
+
+// Fixed Parameters are [("b",3)]
+
+// Constant Decls:
+// -----
+const int b = 3;
+const int p;
+const int c;
+const int w;
+const int MAXDIFF;
+const int INIT = 1;
+const int WRITE = 2;
+const int SELECT = 3;
+const int FINISH = 4;
+
+// Module Decls:
+// -----
+
+module Flash
+
+// Variable Decls:
+// -----
+fm_clean: array [1..b] of [0..p];
+fm_erase: array [1..b] of [0..w];
+pc: [INIT..FINISH] init INIT;
+i: [0..c] init 0;
+
+// Commands:
+// -----
+
+[] (pc = INIT) -> (
+  for x: [1..b] apply &
+   to (fm_clean'[x] = p) & (fm_erase[x] = 0) & (pc' = WRITE))
+
+[] ((pc = WRITE) & (writeable != 0)) -> 
+  for x: [1..b] apply +
+   to (((fm_clean[x] > 0) ? (1 / writeable) : 0)): ((fm_clean'[x] = fm_clean[x]) & (i' = (i + 1)))
+
+[] ((pc = WRITE) & (writeable = 0)) -> (pc' = FINISH)
+
+[] ((pc = WRITE) & (i = c)) -> (pc' = SELECT)
+
+[] ((pc = SELECT) & ((candidates = 0) | !(can_erase))) -> (pc' = FINISH)
+
+[] ((pc = SELECT) & (candidates != 0) & can_erase) -> 
+  for from: [1..b],to: [1..b] apply +
+   to ((((from != to) & cand(from,to)) ? (1 / candidates) : 0)): ((fm_clean'[to] = (fm_clean[to] - dirty(from))) & (fm_clean'[from] = p) & (fm_erase'[from] = (fm_erase[from] + 1)) & (i' = 0) & (pc' = WRITE))
+
+[] (pc = FINISH) -> true
+
+endmodule
+
+
+// Formulae:
+// -----
+
+formula writeable = 
+  for x: [1..b] apply +
+   to ((fm_clean[x] != 0) ? 1 : 0)
+
+formula dirty(x) = (p - fm_clean[x])
+
+formula cand(x,y) = ((x != y) & (dirty(x) > 0) & (fm_clean[x] >= dirty(x)))
+
+formula candidates = 
+  for x: [1..b],y: [1..b] apply +
+   to (((x != y) & cand(x,y)) ? 1 : 0)
+
+formula can_erase = 
+  for x: [1..b] apply &
+   to (fm_erase[x] < w)
+
+formula diff(x,y) = (fm_erase[x] - fm_erase[y])
+
+formula toobig = 
+  for x: [1..b],y: [1..b] apply |
+   to ((x != y) & (diff(x,y) >= MAXDIFF))
