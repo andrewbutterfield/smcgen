@@ -64,6 +64,7 @@ data Expr
        Expr  -- array index
   | AF [VDecl]  -- array indices declaration
        String   -- operator symbol
+       Expr     -- guard expression
        Expr     -- array body expression/update
   deriving (Eq,Show,Read)
 
@@ -324,15 +325,15 @@ formula candidates =
 Here we see the need for arrays
 and a new \texttt{for}-expression:
 \begin{prism}
-for vars:ranges apply op to expr
+for vars:ranges apply op over grd -> expr
 \end{prism}
 
 We can use this to simplify all of the above:
 \begin{prism}
-formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+formula writeable = for x:[1..b] apply + over (fm_clean[x]!=0 ? 1 : 0);
 formula dirty(x:[1..b]) = p-fm_clean[x];
-formula cand(x,y:[1..b]) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
-formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
+formula cand(x,y:[1..b]) = x/=y ->  dirty(x)>0 & fm_clean[y] >= dirty(x);
+formula candidates = for x,y:[1..b] apply + over x!=y -> cand(x,y)?1:0);
 \end{prism}
 We see the new \texttt{for}-construct, where expressions replace updates
 as well as having parameterised formul\ae.
@@ -352,7 +353,7 @@ data Formula
 
 Rewritten ``our style'':
 \begin{prism}
-formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
+formula writeable = for x:[1..b] apply + over (fm_clean[x]!=0 ? 1 : 0);
 \end{prism}
 \begin{code}
 x = N "x" ; y = N "y"
@@ -360,6 +361,7 @@ _writeable
   = Formula "writeable" []
             $ AF [Var "x" (rngT _1 b)]
                  "+"
+                 true
                  (fm_clean[x] .!= _0 .? _1 .: _0)
 writeable = N "writeable"
 \end{code}
@@ -373,7 +375,7 @@ _dirty
 dirty e = F "dirty" [e]
 \end{code}
 \begin{prism}
-formula cand(x,y:[1..b]) = x!=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+formula cand(x,y:[1..b]) = x!=y -> dirty(x)>0 & fm_clean[y] >= dirty(x);
 \end{prism}
 \begin{code}
 _cand
@@ -384,25 +386,26 @@ _cand
 cand (e, f) = F "cand" [e,f]
 \end{code}
 \begin{prism}
-formula candidates = for x,y:[1..b] apply + to (x!=y & cand(x,y)?1:0);
+formula candidates = for x,y:[1..b] apply + over x!=y -> cand(x,y)?1:0);
 \end{prism}
 \begin{code}
 _candidates
   = Formula "candidates" []
             $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
                  "+"
-                 ( x .!= y .&
-                   cand (x, y) .? _1 .: _0 )
+                 ( x .!= y )
+                 ( cand (x, y) .? _1 .: _0 )
 candidates = N "candidates"
 \end{code}
 \begin{prism}
-formula can_erase = for x:[1..b] apply & to fm_erase[x]<w ;
+formula can_erase = for x:[1..b] apply & over fm_erase[x]<w ;
 \end{prism}
 \begin{code}
 _can_erase
   = Formula "can_erase" []
             $ AF [Var "x" (rngT _1 b)]
                  "&"
+                 true
                  ( fm_erase[x] .< w)
 can_erase = N "can_erase"
 \end{code}
@@ -416,15 +419,15 @@ _diff
 diff (e,f) = F "diff" [e,f]
 \end{code}
 \begin{prism}
-formula toobig = for x,y:[1..b] apply | to (x!=y & diff(x,y) >= MAXDIFF)
+formula toobig = for x,y:[1..b] apply | over x!=y -> diff(x,y) >= MAXDIFF)
 \end{prism}
 \begin{code}
 _toobig
   = Formula "toobig" []
             $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
                  "|"
-                 ( x .!= y .&
-                   diff(x, y) .>= _MAXDIFF )
+                 ( x .!= y )
+                 ( diff(x, y) .>= _MAXDIFF )
 toobig = N "toobig"
 \end{code}
 \begin{code}
@@ -485,12 +488,12 @@ syntax.
 We propose that the above becomes:
 \begin{prism}
 [] pc=WRITE & i<c & writeable!=0 ->
-  for x:[1..b] apply + @
+  for x:[1..b] apply + over
     (fm_clean[x]>0?1/writeable:0): (fm_clean'[x]=fm_clean[x]-1) & (i'=i+1);
 [] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
 [] pc=SELECT & candidates!=0 & can_erase ->
-  for from,to:[1..b] apply + @
-  (x /= y && cand(x,y) ? 1/candidates : 0):
+  for from,to:[1..b] apply + over
+    x /= y -> cand(x,y) ? 1/candidates : 0):
      (fm_clean[to]'=fm_clean[to]-dirty(from)) &
      (fm_clean[to]'=p) & (fm_erase[to]'=fm_erase[to]+1) & (i'=0) & (pc'=WRITE) ;
 \end{prism}
@@ -502,25 +505,26 @@ Rewritten ``our style'':
 
 \begin{prism}
 [] pc=INIT ->
-  ( for x:[1..b] apply & to (fm_clean'[x]=p) & (fm_erase'[x]=0)) )
+  ( for x:[1..b] apply & over (fm_clean'[x]=p) & (fm_erase'[x]=0)) )
   & (pc'=WRITE);
 \end{prism}
 \begin{code}
 cmd1 = Cmd [] (pc .= _INIT)
            ( ( AF [Var "x" $ rngT _1 b]
                 "&"
-                ( fm_clean'[x] .= p) .& fm_erase[x] .= _0 )
-              .& pc' .= _WRITE )
+                true
+                ( fm_clean'[x] .= p) .& fm_erase[x] .= _0 .& pc' .= _WRITE ) )
 \end{code}
 \begin{prism}
 [] pc=WRITE & i<c & writeable!=0 ->
-  for x:[1..b] apply + @
+  for x:[1..b] apply + over
     (fm_clean[x]>0?1/writeable:0): (fm_clean'[x]=fm_clean[x]-1) & (i'=i+1);
 \end{prism}
 \begin{code}
 cmd2 = Cmd [] (pc .= _WRITE .& writeable .!= _0)
            ( AF [Var "x" $ rngT _1 b]
                 "+"
+                true
                 ( P (fm_clean[x] .> _0 .? _1./writeable .: _0)
                     ( fm_clean'[x] .= fm_clean[x]
                       .& i' .= i .+ _1 ) ) )
@@ -546,8 +550,8 @@ cmd5 = Cmd [] (pc .= _SELECT .& ( candidates .= _0 .| lnot can_erase ) )
 \end{code}
 \begin{prism}
 [] pc=SELECT & candidates!=0 & can_erase ->
-  for from,to:[1..b] apply + @
-  (from != to & cand(from,to) ? 1/candidates : 0):
+  for from,to:[1..b] apply + over
+  from != to ->  cand(from,to) ? 1/candidates : 0):
      (fm_clean[to]'=fm_clean[to]-dirty(from)) &
      (fm_clean[from]'=p) & (fm_erase[from]'=fm_erase[from]+1) &
      (i'=0) & (pc'=WRITE) ;
@@ -557,7 +561,8 @@ from = N "from" ; to = N "to"
 cmd6 = Cmd [] (pc .= _SELECT .& candidates .!= _0 .& can_erase)
            ( AF [Var "from" $ rngT _1 b,Var "to" $ rngT _1 b]
                 "+"
-                ( P ( from .!= to .& cand(from,to) .? _1./candidates .: _0)
+                (from .!= to)
+                ( P (  cand(from,to) .? _1./candidates .: _0)
                     ( fm_clean'[to] .= fm_clean[to] .- dirty(from)
                       .& fm_clean'[from] .= p
                       .& fm_erase'[from] .= fm_erase[from] .+ _1
@@ -706,9 +711,10 @@ prismE fpars expr
     prismE' pc (N' n)  = n ++ "'"
     prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' pc expr
     prismE' pc (AI arr idx) = prismE' pc arr ++ "["++prismE' 0 idx++"]"
-    prismE' pc (AF idcls op expr)
-     =    "\n  for " ++ prismAD idcls ++ " apply " ++ op
-       ++ "\n   to " ++ prismE' 0 expr
+    prismE' pc (AF idcls op grd expr)
+     =    "\n  for  " ++ prismAD idcls ++ " apply " ++ op
+       ++ "\n  over " ++ prismE' 0 grd
+       ++ " -> " ++ prismE' 0 expr
 \end{code}
 
 The treatment of function/operators is complicated.
@@ -841,7 +847,7 @@ can only be to the variables declared in the enclosing \texttt{for}-construct}
 
 \begin{code}
 x2sExpr :: [String] -> (Ident -> Int) -> Expr -> Expr
-x2sExpr pfnames cval (AF vdcls op e) = x2sFor pfnames cval vdcls op e
+x2sExpr pfnames cval (AF vdcls op g e) = x2sFor pfnames cval vdcls op g e
 x2sExpr pfnames cval e = e
 \end{code}
 
@@ -851,7 +857,7 @@ We need to know here the \emph{names} of the parameterised formul\ae.
 
 Assuming \prsm{b=3} and given (for example):
 \begin{prism}
-for x,y:[1..b] apply & to (x != y & cand(x,y) ? 1 : 0)
+for x,y:[1..b] apply & over (x != y) ->  (cand(x,y) ? 1 : 0)
 \end{prism}
 We first take the declaration types and compute their \texttt{lprod}:
 \begin{verbatim}
@@ -859,12 +865,13 @@ We first take the declaration types and compute their \texttt{lprod}:
 \end{verbatim}
 We then want \prsm{x} and \prsm{y} to range over these values.
 Consider the case \prsm{x=3 & y=2}.
-We then do a substition in the body, to obtain:
+We then do a substition in the guard and body, to obtain:
 \begin{prism}
-(3 != 2 & cand(3,2) ? 1 : 0)
+(3 != 2) ->  (cand(3,2) ? 1 : 0)
 \end{prism}
-We then attempt to evaluate as much as is possible,
-and obtain:
+We then attepmpt to evaluate guards to eliminate terms,
+as much as is possible.
+Here we obtain:
 \begin{prism}
 cand(3,2) ? 1 : 0
 \end{prism}
@@ -875,14 +882,10 @@ cand_3_2 ? 1 : 0
 \end{prism}
 We finish by applying the operator \texttt{op} to the list of the outcomes,
 with some removal of unit values.
-
-\textbf{At this point we realise that the body of a for-construct
-needs to have the possibility of a boolean guard.}
-
 \begin{code}
-x2sFor :: [String] -> (Ident -> Int) -> [VDecl] -> String -> Expr -> Expr
-x2sFor pfnames cval vdcls op e
-  = AF vdcls op e -- for now
+x2sFor :: [String] -> (Ident -> Int) -> [VDecl] -> String -> Expr -> Expr -> Expr
+x2sFor pfnames cval vdcls op g e
+  = AF vdcls op g e -- for now
 \end{code}
 
 
