@@ -10,5 +10,5 @@ import Hack
 import Abs1
 
 main :: IO ()
-main = abs1 prism1 [("b",3)]
+main = sequence_ $ map abs1 [2..8]
 \end{code}

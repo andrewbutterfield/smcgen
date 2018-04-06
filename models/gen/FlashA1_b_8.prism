@@ -1,11 +1,11 @@
 // Abs1 under development
 dtmc
 
-// Fixed Parameters are [("b",3)]
+// Fixed Parameters are [("b",8)]
 
 // Constant Decls:
 // -----
-const int b = 3;
+const int b = 8;
 const int p;
 const int c;
 const int w;
@@ -22,12 +22,8 @@ module Flash
 
 // Variable Decls:
 // -----
-fm_clean_1: [0..p];
-fm_clean_2: [0..p];
-fm_clean_3: [0..p];
-fm_erase_1: [0..w];
-fm_erase_2: [0..w];
-fm_erase_3: [0..w];
+fm_clean: array [1..b] of [0..p];
+fm_erase: array [1..b] of [0..w];
 pc: [INIT..FINISH] init INIT;
 i: [0..c] init 0;
 

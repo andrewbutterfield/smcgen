@@ -6,7 +6,7 @@ Copyright  Andrew Buttefield (c) 2018
 LICENSE: BSD3, see file LICENSE at smcgen root
 \end{verbatim}
 \begin{code}
-module Abs1 ( prism1, abs1 ) where
+module Abs1 ( flash1, abs1 ) where
 import Data.List
 \end{code}
 
@@ -23,16 +23,21 @@ Eventually these will all be factored out into their own sections.
 \subsection{Top Level}
 
 \begin{code}
-abs1 :: Prism1 -> [(String,Int)] -> IO ()
-abs1 prsm fixedpars
-  = do let code = prism1code prsm fixedpars
-       putStrLn code
-       let fname = "models/gen/FlashA1"++showpars++".prism"
-       writeFile fname code
-       putStrLn ("Prism written to "++fname)
-  where
-    showpars = concat $ map showpar fixedpars
-    showpar (s,i) = '_':s ++ '_':show i
+abs1 b
+ | b < 2 = putStrLn "smcgen with b less than two is somewhat pointless"
+ | otherwise
+     =  do let code1 = prism1code flash1 fixedpars
+           putStrLn code1
+           let cflash = x2sPrism fixedpars flash1
+           let ccode = prism1code cflash fixedpars
+           putStrLn ccode
+           let fname = "models/gen/FlashA1"++showpars++".prism"
+           writeFile fname ccode
+           putStrLn ("Prism written to "++fname)
+ where
+  fixedpars = [("b",b)]
+  showpars = concat $ map showpar fixedpars
+  showpar (s,i) = '_':s ++ '_':show i
 \end{code}
 
 
@@ -574,7 +579,7 @@ data SemModel = DTMC | Others deriving (Eq, Show, Read)
 type Module1 = (Ident, [VDecl], [Command])
 type Prism1 = (SemModel,[CDecl], [Module1], [Formula] )
 
-prism1 = (DTMC, cdecl, [("Flash",vdecl,commands)], formulae)
+flash1 = (DTMC, cdecl, [("Flash",vdecl,commands)], formulae)
 \end{code}
 
 \newpage
@@ -716,12 +721,123 @@ bracket pc pop str -- pc: context precedence, pop: operator precedence
  | otherwise  =  str
 \end{code}
 
+\subsection{Compiling Arrays Away}
+
+We have abstract syntax and code output for our extended form of Prism,
+of which ``standard'' Prism is a subset.
+We will now define a compiler that maps our extended-prism abstract syntax
+into a sematintically equivalent standard abstract syntax.
+The standard syntax does not use the array type or the \texttt{for}-construct.
+
+At this level of abstraction we assume that everything is ``well-formed'',
+and perform no checks for this.
+In fact we are using this level of abtraction
+to clarify what well-formedness should be.
+In the code that follows, any lack of well-formedness
+should lead to a runtime error%
+\footnote{
+We will address this more rigourously in Abstraction Level Two
+}%
+.
+
+\subsubsection{Compiling Extended Prism}
+The semantic module and constant declarations
+are all just standard.
+\begin{code}
+x2sPrism :: [(String,Int)] -> Prism1 -> Prism1
+x2sPrism fixedpars (smod,cdcl,ms,form)
+ = ( smod ,cdcl
+   , map (x2sModule cval) ms
+   , map x2sFormula form )
+ where
+   cval :: Ident -> Int
+   cval = aget fixedpars
+
+\end{code}
+
+\subsubsection{Compiling Extended Modules}
+\begin{code}
+x2sModule :: (Ident -> Int) -> Module1 -> Module1
+x2sModule cval (nm,vdcl,cmmds)
+  = ( nm
+    , concat $ map (x2sVDecl cval) vdcl
+    , map x2sCommand cmmds )
+\end{code}
+
+\subsubsection{Compiling Extended Variables}
+The extended declarations are those involving an array type.
+The key well-formedness condition here
+is:
+\WF{array bounds}
+{The range-types that define the array bounds
+only use literal numbers, or initialised constants.}
+The \texttt{cval} argument of this function assumes this well-formedness.
+\begin{code}
+x2sVDecl :: (Ident -> Int) -> VDecl -> [VDecl]
+x2sVDecl cval (Var i typ)
+ = let
+     (basetype,bounds) = collArrBounds cval [] typ
+     variants = lprod $ map bExp bounds
+   in map (declVV i basetype) variants
+x2sVDecl _ vdcl = [vdcl]
+
+-- we assume n1 and n2 are either ints, or a constant known to cval
+collArrBounds :: (Ident -> Int) -> [(Int,Int)] -> Type -> (Type,[(Int,Int)])
+collArrBounds cval bounds (ArrT n1 n2 t)
+  = collArrBounds cval ((eval cval n1,eval cval n2):bounds) t
+  where
+    eval _    (I i) = i
+    eval cval (N n) = cval n
+collArrBounds cval bounds basetype  =  (basetype,reverse bounds)
+
+bExp (n1,n2) = [n1..n2]
+
+declVV i btyp ns = Var (i ++ concat (map variant ns)) btyp
+
+variant n = '_' : show n
+\end{code}
+
+\subsubsection{Compiling Extended Commands}
+\begin{code}
+x2sCommand :: Command -> Command
+x2sCommand x = x
+\end{code}
+
+\subsubsection{Compiling Extended Formul\ae}
+\begin{code}
+x2sFormula :: Formula -> Formula
+x2sFormula x = x
+\end{code}
+
+
 \subsection{Random Code bits}
 
+Association list lookup:
 \begin{code}
 alookup :: (Eq a, Monad m) => [(a,b)] -> a -> m b
 alookup [] _ = fail "not found"
 alookup ((x,y):xys) z
  | z == x  =  return y
  | otherwise  = alookup xys z
+\end{code}
+
+When we are really sure the key is in the assoc-list:
+\begin{code}
+aget :: (Eq a, Show a) => [(a,b)] -> a -> b
+aget [] z = error ("aget: "++show z++" not found")
+aget ((x,y):xys) z
+ | z == x     =  y
+ | otherwise  =  aget xys z
+\end{code}
+
+List Product - all the ways to construct a list
+by taking one element from each of the argument lists
+\begin{code}
+-- lprod :: [[a]] -> [[a]]
+lprod [] = []
+lprod [as] = map sngl as where sngl a = [a]
+lprod (as:bss)  =  concat $ map (lprod' (lprod bss)) as
+
+-- lprod' :: [[a]] -> a -> [[a]]
+lprod' pss a  =  map (a:) pss
 \end{code}
