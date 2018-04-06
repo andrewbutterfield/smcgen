@@ -64,9 +64,9 @@ formula writeable =
   for x: [1..b] apply +
    to (fm_clean[x] != 0 ? 1 : 0)
 
-formula dirty(x) = p - fm_clean[x]
+formula dirty(x:[1..b]) = p - fm_clean[x]
 
-formula cand(x,y) = x != y & dirty(x) > 0 & fm_clean[x] >= dirty(x)
+formula cand(x:[1..b],y:[1..b]) = x != y & dirty(x) > 0 & fm_clean[x] >= dirty(x)
 
 formula candidates = 
   for x: [1..b],y: [1..b] apply +
@@ -76,7 +76,7 @@ formula can_erase =
   for x: [1..b] apply &
    to fm_erase[x] < w
 
-formula diff(x,y) = fm_erase[x] - fm_erase[y]
+formula diff(x:[1..b],y:[1..b]) = fm_erase[x] - fm_erase[y]
 
 formula toobig = 
   for x: [1..b],y: [1..b] apply |

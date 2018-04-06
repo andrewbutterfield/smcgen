@@ -8,6 +8,7 @@ LICENSE: BSD3, see file LICENSE at smcgen root
 \begin{code}
 module Abs1 ( flash1, abs1 ) where
 import Data.List
+import Data.Maybe
 \end{code}
 
 We now take a fresh look at the initial \texttt{Flash.prism} example,
@@ -286,6 +287,7 @@ i: [0..c] init 0;
 \end{prism}
 \begin{code}
 _0 = I 0
+one2b = rngT _1 b
 vdecl
   = [ Var "fm_clean" $ arrT _1 b $ rngT _0 p
     , Var "fm_erase" $ arrT _1 b $ rngT _0 w
@@ -328,8 +330,8 @@ for vars:ranges apply op to expr
 We can use this to simplify all of the above:
 \begin{prism}
 formula writeable = for x:[1..b] apply + to (fm_clean[x]!=0 ? 1 : 0);
-formula dirty(x) = p-fm_clean[x];
-formula cand(x,y) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+formula dirty(x:[1..b]) = p-fm_clean[x];
+formula cand(x,y:[1..b]) = x/=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
 formula candidates = for x,y:[1..b] apply + to (x/= && cand(x,y)?1:0);
 \end{prism}
 We see the new \texttt{for}-construct, where expressions replace updates
@@ -342,7 +344,7 @@ We shall treat an update as an expression,
 that has dashed-forms of variables in it.
 \begin{code}
 data Formula
-  = Formula Ident [Ident] Expr
+  = Formula Ident [(Ident,Type)] Expr
   deriving (Eq,Show,Read)
 \end{code}
 
@@ -362,20 +364,20 @@ _writeable
 writeable = N "writeable"
 \end{code}
 \begin{prism}
-formula dirty(x) = p-fm_clean[x];
+formula dirty(x:[1..b]) = p-fm_clean[x];
 \end{prism}
 \begin{code}
 _dirty
-  = Formula "dirty" ["x"]
+  = Formula "dirty" [("x",one2b)]
             (p .- fm_clean[x])
 dirty e = F "dirty" [e]
 \end{code}
 \begin{prism}
-formula cand(x,y) = x!=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
+formula cand(x,y:[1..b]) = x!=y & dirty(x)>0 & fm_clean[y] >= dirty(x);
 \end{prism}
 \begin{code}
 _cand
-  = Formula "cand" ["x","y"]
+  = Formula "cand" [("x",one2b),("y",one2b)]
             ( x .!= y .&
               dirty(x) .> _0 .&
               fm_clean[x] .>= dirty(x) )
@@ -405,11 +407,11 @@ _can_erase
 can_erase = N "can_erase"
 \end{code}
 \begin{prism}
-formula diff(x,y) = fm_erase(x)-fm_erase(y);
+formula diff(x,y:[1..b]) = fm_erase(x)-fm_erase(y);
 \end{prism}
 \begin{code}
 _diff
-  = Formula "diff" ["x","y"]
+  = Formula "diff" [("x",one2b),("y",one2b)]
             ( fm_erase[x] .- fm_erase[y] )
 diff (e,f) = F "diff" [e,f]
 \end{code}
@@ -671,7 +673,10 @@ prismFs fpars = map (prismF fpars)
 prismF fpars (Formula nm [] body)
   = "\nformula "++nm++" = "++prismE fpars body
 prismF fpars (Formula nm args body)
-  = "\nformula "++nm++"("++intercalate "," args++") = " ++prismE fpars body
+  = "\nformula "
+       ++ nm ++ "("++intercalate "," (map fDecl args) ++") = "
+       ++ prismE fpars body
+  where fDecl (nm,typ) = nm ++ ":" ++ prismT fpars typ
 \end{code}
 
 \subsubsection{Generating Prism Types}
@@ -748,10 +753,15 @@ x2sPrism :: [(String,Int)] -> Prism1 -> Prism1
 x2sPrism fixedpars (smod,cdcl,ms,form)
  = ( smod ,cdcl
    , map (x2sModule cval) ms
-   , map x2sFormula form )
+   , concat $ map (x2sFormula pfnames cval) form )
  where
    cval :: Ident -> Int
    cval = aget fixedpars
+
+   -- names of forumlae with parameters
+   pfnames = catMaybes $ map getPFN form
+
+   getPFN (Formula nm args _)  =  if null args then Nothing else Just nm
 
 \end{code}
 
@@ -761,16 +771,16 @@ x2sModule :: (Ident -> Int) -> Module1 -> Module1
 x2sModule cval (nm,vdcl,cmmds)
   = ( nm
     , concat $ map (x2sVDecl cval) vdcl
-    , map x2sCommand cmmds )
+    , map (x2sCommand cval) cmmds )
 \end{code}
 
 \subsubsection{Compiling Extended Variables}
 The extended declarations are those involving an array type.
-The key well-formedness condition here
-is:
+
 \WF{array bounds}
 {The range-types that define the array bounds
 only use literal numbers, or initialised constants.}
+
 The \texttt{cval} argument of this function assumes this well-formedness.
 \begin{code}
 x2sVDecl :: (Ident -> Int) -> VDecl -> [VDecl]
@@ -799,14 +809,80 @@ variant n = '_' : show n
 
 \subsubsection{Compiling Extended Commands}
 \begin{code}
-x2sCommand :: Command -> Command
-x2sCommand x = x
+x2sCommand :: (Ident -> Int) -> Command -> Command
+x2sCommand cval x = x
 \end{code}
 
 \subsubsection{Compiling Extended Formul\ae}
+The extensions to formulas include the addition of arguments to formulas.
+
+\WF{array usage in formul\ae}
+{The \texttt{for}-construct can only be used in formulas without arguments.}
+
 \begin{code}
-x2sFormula :: Formula -> Formula
-x2sFormula x = x
+x2sFormula :: [String] -> (Ident -> Int) -> Formula -> [Formula]
+x2sFormula pfnames cval (Formula nm [] body)
+  =  [Formula nm [] $ x2sExpr pfnames cval body]
+x2sFormula pfnames cval form@(Formula nm args body)
+  =  [form] -- for now...
+\end{code}
+
+\newpage
+\subsubsection{Compiling Extended Expressions}
+Extensions for expressions include array indexing,
+and the \texttt{for}-construct.
+
+\WF{array usage in expressions}
+{The \texttt{for}-construct can only occur at the top-level}
+
+\WF{formula usage in expressions}
+{Any application of a parameterised formula
+can only be to the variables declared in the enclosing \texttt{for}-construct}
+
+\begin{code}
+x2sExpr :: [String] -> (Ident -> Int) -> Expr -> Expr
+x2sExpr pfnames cval (AF vdcls op e) = x2sFor pfnames cval vdcls op e
+x2sExpr pfnames cval e = e
+\end{code}
+
+\subsubsection{Compiling For-Expressions}
+
+We need to know here the \emph{names} of the parameterised formul\ae.
+
+Assuming \prsm{b=3} and given (for example):
+\begin{prism}
+for x,y:[1..b] apply & to (x != y & cand(x,y) ? 1 : 0)
+\end{prism}
+We first take the declaration types and compute their \texttt{lprod}:
+\begin{verbatim}
+[[1,1],[1,2],[1,3],[2,1],[2,2],[2,3],[3,1],[3,2],[3,3]]
+\end{verbatim}
+We then want \prsm{x} and \prsm{y} to range over these values.
+Consider the case \prsm{x=3 & y=2}.
+We then do a substition in the body, to obtain:
+\begin{prism}
+(3 != 2 & cand(3,2) ? 1 : 0)
+\end{prism}
+We then attempt to evaluate as much as is possible,
+and obtain:
+\begin{prism}
+cand(3,2) ? 1 : 0
+\end{prism}
+We then look for applications of known parameterised formulae
+and use the parameters to transform the name, getting
+\begin{prism}
+cand_3_2 ? 1 : 0
+\end{prism}
+We finish by applying the operator \texttt{op} to the list of the outcomes,
+with some removal of unit values.
+
+\textbf{At this point we realise that the body of a for-construct
+needs to have the possibility of a boolean guard.}
+
+\begin{code}
+x2sFor :: [String] -> (Ident -> Int) -> [VDecl] -> String -> Expr -> Expr
+x2sFor pfnames cval vdcls op e
+  = AF vdcls op e -- for now
 \end{code}
 
 
