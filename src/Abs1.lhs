@@ -49,6 +49,11 @@ abs1 b
 We need to support Prism expressions,
 plus our extensions
 \begin{code}
+type ADecl -- array index declaration
+  = ( Ident   -- index variable
+    , Expr    -- lower bound
+    , Expr )  -- upper bound
+
 data Expr
   = B Bool -- literal boolean
   | I Int    -- literal int
@@ -62,7 +67,7 @@ data Expr
   -- added stuff
   | AI Expr  -- array-valued expression
        Expr  -- array index
-  | AF [VDecl]  -- array indices declaration
+  | AF [ADecl]  -- array index declarations.
        String   -- operator symbol
        Expr     -- guard expression
        Expr     -- array body expression/update
@@ -359,7 +364,7 @@ formula writeable = for x:[1..b] apply + over (fm_clean[x]!=0 ? 1 : 0);
 x = N "x" ; y = N "y"
 _writeable
   = Formula "writeable" []
-            $ AF [Var "x" (rngT _1 b)]
+            $ AF [("x",_1,b)]
                  "+"
                  true
                  (fm_clean[x] .!= _0 .? _1 .: _0)
@@ -391,7 +396,7 @@ formula candidates = for x,y:[1..b] apply + over x!=y -> cand(x,y)?1:0);
 \begin{code}
 _candidates
   = Formula "candidates" []
-            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
+            $ AF [("x",_1,b),("y",_1,b)]
                  "+"
                  ( x .!= y )
                  ( cand (x, y) .? _1 .: _0 )
@@ -403,7 +408,7 @@ formula can_erase = for x:[1..b] apply & over fm_erase[x]<w ;
 \begin{code}
 _can_erase
   = Formula "can_erase" []
-            $ AF [Var "x" (rngT _1 b)]
+            $ AF [("x",_1,b)]
                  "&"
                  true
                  ( fm_erase[x] .< w)
@@ -424,7 +429,7 @@ formula toobig = for x,y:[1..b] apply | over x!=y -> diff(x,y) >= MAXDIFF)
 \begin{code}
 _toobig
   = Formula "toobig" []
-            $ AF [Var "x" (rngT _1 b),Var "y" (rngT _1 b)]
+            $ AF [("x",_1,b),("y",_1,b)]
                  "|"
                  ( x .!= y )
                  ( diff(x, y) .>= _MAXDIFF )
@@ -510,7 +515,7 @@ Rewritten ``our style'':
 \end{prism}
 \begin{code}
 cmd1 = Cmd [] (pc .= _INIT)
-           ( ( AF [Var "x" $ rngT _1 b]
+           ( ( AF [("x",_1,b)]
                 "&"
                 true
                 ( fm_clean'[x] .= p) .& fm_erase[x] .= _0 .& pc' .= _WRITE ) )
@@ -522,7 +527,7 @@ cmd1 = Cmd [] (pc .= _INIT)
 \end{prism}
 \begin{code}
 cmd2 = Cmd [] (pc .= _WRITE .& writeable .!= _0)
-           ( AF [Var "x" $ rngT _1 b]
+           ( AF [("x",_1,b)]
                 "+"
                 true
                 ( P (fm_clean[x] .> _0 .? _1./writeable .: _0)
@@ -559,7 +564,7 @@ cmd5 = Cmd [] (pc .= _SELECT .& ( candidates .= _0 .| lnot can_erase ) )
 \begin{code}
 from = N "from" ; to = N "to"
 cmd6 = Cmd [] (pc .= _SELECT .& candidates .!= _0 .& can_erase)
-           ( AF [Var "from" $ rngT _1 b,Var "to" $ rngT _1 b]
+           ( AF [("from",_1,b),("to",_1,b)]
                 "+"
                 (from .!= to)
                 ( P (  cand(from,to) .? _1./candidates .: _0)
@@ -702,7 +707,10 @@ prismE fpars expr
   = prismE' 0 expr
   where
     -- for array declarations
-    prismAD idcls = intercalate "," $ map (prismV fpars) idcls
+    prismAD idcls = intercalate "," $ map prismI idcls
+
+    prismI (n,low,high)
+     = n ++ ":["++prismE fpars low++".."++prismE fpars high++"]"
 
     prismE' pc (B b)  =  if b then "true" else "false"
     prismE' pc (I i)  = show i
@@ -780,6 +788,7 @@ x2sModule cval (nm,vdcl,cmmds)
     , map (x2sCommand cval) cmmds )
 \end{code}
 
+\newpage
 \subsubsection{Compiling Extended Variables}
 The extended declarations are those involving an array type.
 
@@ -800,11 +809,13 @@ x2sVDecl _ vdcl = [vdcl]
 -- we assume n1 and n2 are either ints, or a constant known to cval
 collArrBounds :: (Ident -> Int) -> [(Int,Int)] -> Type -> (Type,[(Int,Int)])
 collArrBounds cval bounds (ArrT n1 n2 t)
-  = collArrBounds cval ((eval cval n1,eval cval n2):bounds) t
-  where
-    eval _    (I i) = i
-    eval cval (N n) = cval n
+  = collArrBounds cval ((numEval cval n1,numEval cval n2):bounds) t
 collArrBounds cval bounds basetype  =  (basetype,reverse bounds)
+
+numEval :: (Ident ->Int) -> Expr -> Int
+-- will fail at runtime if expression is not known to be a number
+numEval _    (I i) = i
+numEval envf (N n) = envf n
 
 bounds2variants :: [(Int,Int)] -> [[Int]]
 bounds2variants bounds = lprod $ map bExp bounds
@@ -822,6 +833,7 @@ x2sCommand :: (Ident -> Int) -> Command -> Command
 x2sCommand cval x = x
 \end{code}
 
+\newpage
 \subsubsection{Compiling Extended Formul\ae}
 The extensions to formulas include the addition of arguments to formulas.
 
@@ -886,9 +898,10 @@ cand_3_2 ? 1 : 0
 We finish by applying the operator \texttt{op} to the list of the outcomes,
 with some removal of unit values.
 \begin{code}
-x2sFor :: [String] -> (Ident -> Int) -> [VDecl] -> String -> Expr -> Expr -> Expr
+x2sFor :: [String] -> (Ident->Int) -> [ADecl] -> String -> Expr -> Expr -> Expr
 x2sFor pfnames cval vdcls op g e
-  = AF vdcls op g e -- for now
+  = let
+    in AF vdcls op g e -- for now
 \end{code}
 
 
