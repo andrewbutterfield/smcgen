@@ -793,7 +793,7 @@ x2sVDecl :: (Ident -> Int) -> VDecl -> [VDecl]
 x2sVDecl cval (Var i typ)
  = let
      (basetype,bounds) = collArrBounds cval [] typ
-     variants = lprod $ map bExp bounds
+     variants = bounds2variants bounds
    in map (declVV i basetype) variants
 x2sVDecl _ vdcl = [vdcl]
 
@@ -805,6 +805,9 @@ collArrBounds cval bounds (ArrT n1 n2 t)
     eval _    (I i) = i
     eval cval (N n) = cval n
 collArrBounds cval bounds basetype  =  (basetype,reverse bounds)
+
+bounds2variants :: [(Int,Int)] -> [[Int]]
+bounds2variants bounds = lprod $ map bExp bounds
 
 bExp (n1,n2) = [n1..n2]
 
