@@ -49,10 +49,10 @@ abs1 b
 We need to support Prism expressions,
 plus our extensions
 \begin{code}
-type ADecl -- array index declaration
-  = ( Ident   -- index variable
-    , Expr    -- lower bound
-    , Expr )  -- upper bound
+type ADecl  -- array index declaration
+  = ( Ident       -- index variable
+    , ( Expr      -- lower bound
+      , Expr ) )  -- upper bound
 
 data Expr
   = B Bool -- literal boolean
@@ -293,7 +293,7 @@ i: [0..c] init 0;
 \end{prism}
 \begin{code}
 _0 = I 0
-one2b = rngT _1 b
+one2b = (_1,b) -- rngT _1 b
 vdecl
   = [ Var "fm_clean" $ arrT _1 b $ rngT _0 p
     , Var "fm_erase" $ arrT _1 b $ rngT _0 w
@@ -350,7 +350,7 @@ We shall treat an update as an expression,
 that has dashed-forms of variables in it.
 \begin{code}
 data Formula
-  = Formula Ident [(Ident,Type)] Expr
+  = Formula Ident [ADecl] Expr
   deriving (Eq,Show,Read)
 \end{code}
 
@@ -364,7 +364,7 @@ formula writeable = for x:[1..b] apply + over (fm_clean[x]!=0 ? 1 : 0);
 x = N "x" ; y = N "y"
 _writeable
   = Formula "writeable" []
-            $ AF [("x",_1,b)]
+            $ AF [("x",(_1,b))]
                  "+"
                  true
                  (fm_clean[x] .!= _0 .? _1 .: _0)
@@ -396,7 +396,7 @@ formula candidates = for x,y:[1..b] apply + over x!=y -> cand(x,y)?1:0);
 \begin{code}
 _candidates
   = Formula "candidates" []
-            $ AF [("x",_1,b),("y",_1,b)]
+            $ AF [("x",one2b),("y",one2b)]
                  "+"
                  ( x .!= y )
                  ( cand (x, y) .? _1 .: _0 )
@@ -408,7 +408,7 @@ formula can_erase = for x:[1..b] apply & over fm_erase[x]<w ;
 \begin{code}
 _can_erase
   = Formula "can_erase" []
-            $ AF [("x",_1,b)]
+            $ AF [("x",one2b)]
                  "&"
                  true
                  ( fm_erase[x] .< w)
@@ -429,7 +429,7 @@ formula toobig = for x,y:[1..b] apply | over x!=y -> diff(x,y) >= MAXDIFF)
 \begin{code}
 _toobig
   = Formula "toobig" []
-            $ AF [("x",_1,b),("y",_1,b)]
+            $ AF [("x",one2b),("y",one2b)]
                  "|"
                  ( x .!= y )
                  ( diff(x, y) .>= _MAXDIFF )
@@ -515,7 +515,7 @@ Rewritten ``our style'':
 \end{prism}
 \begin{code}
 cmd1 = Cmd [] (pc .= _INIT)
-           ( ( AF [("x",_1,b)]
+           ( ( AF [("x",one2b)]
                 "&"
                 true
                 ( fm_clean'[x] .= p) .& fm_erase[x] .= _0 .& pc' .= _WRITE ) )
@@ -527,7 +527,7 @@ cmd1 = Cmd [] (pc .= _INIT)
 \end{prism}
 \begin{code}
 cmd2 = Cmd [] (pc .= _WRITE .& writeable .!= _0)
-           ( AF [("x",_1,b)]
+           ( AF [("x",one2b)]
                 "+"
                 true
                 ( P (fm_clean[x] .> _0 .? _1./writeable .: _0)
@@ -564,7 +564,7 @@ cmd5 = Cmd [] (pc .= _SELECT .& ( candidates .= _0 .| lnot can_erase ) )
 \begin{code}
 from = N "from" ; to = N "to"
 cmd6 = Cmd [] (pc .= _SELECT .& candidates .!= _0 .& can_erase)
-           ( AF [("from",_1,b),("to",_1,b)]
+           ( AF [("from",one2b),("to",one2b)]
                 "+"
                 (from .!= to)
                 ( P (  cand(from,to) .? _1./candidates .: _0)
@@ -684,9 +684,14 @@ prismF fpars (Formula nm [] body)
   = "\nformula "++nm++" = "++prismE fpars body
 prismF fpars (Formula nm args body)
   = "\nformula "
-       ++ nm ++ "("++intercalate "," (map fDecl args) ++") = "
+       ++ nm ++ "(" ++ prismADs fpars args ++ ") = "
        ++ prismE fpars body
-  where fDecl (nm,typ) = nm ++ ":" ++ prismT fpars typ
+
+prismADs fpars adecls  = intercalate "," (map (prismAD fpars) adecls)
+
+prismAD fpars ((nm,bounds))  = nm ++ ":[" ++ prismA fpars bounds ++ "]"
+
+prismA fpars (low,high)  = prismE fpars low ++ ".." ++ prismE fpars high
 \end{code}
 
 \subsubsection{Generating Prism Types}
@@ -706,12 +711,6 @@ prismE :: (String -> Maybe Int) -> Expr -> String
 prismE fpars expr
   = prismE' 0 expr
   where
-    -- for array declarations
-    prismAD idcls = intercalate "," $ map prismI idcls
-
-    prismI (n,low,high)
-     = n ++ ":["++prismE fpars low++".."++prismE fpars high++"]"
-
     prismE' pc (B b)  =  if b then "true" else "false"
     prismE' pc (I i)  = show i
     prismE' pc (D d)  = show d
@@ -719,8 +718,8 @@ prismE fpars expr
     prismE' pc (N' n)  = n ++ "'"
     prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' pc expr
     prismE' pc (AI arr idx) = prismE' pc arr ++ "["++prismE' 0 idx++"]"
-    prismE' pc (AF idcls op grd expr)
-     =    "\n  for  " ++ prismAD idcls ++ " apply " ++ op
+    prismE' pc (AF adcls op grd expr)
+     =    "\n  for  " ++ prismADs fpars adcls ++ " apply " ++ op
        ++ "\n  over " ++ prismE' 0 grd
        ++ " -> " ++ prismE' 0 expr
 \end{code}
@@ -766,13 +765,14 @@ are all just standard.
 x2sPrism :: [(String,Int)] -> Prism1 -> Prism1
 x2sPrism fixedpars (smod,cdcl,ms,form)
  = ( smod ,cdcl
-   , map (x2sModule cval) ms
-   , concat $ map (x2sFormula pfnames cval) form )
+   , map (x2sModule fxparnms cval) ms
+   , concat $ map (x2sFormula pfnames fxparnms cval) form )
  where
+   fxparnms = map fst fixedpars
    cval :: Ident -> Int
    cval = aget fixedpars
 
-   -- names of forumlae with parameters
+   -- names of formulae with parameters
    pfnames = catMaybes $ map getPFN form
 
    getPFN (Formula nm args _)  =  if null args then Nothing else Just nm
@@ -781,11 +781,11 @@ x2sPrism fixedpars (smod,cdcl,ms,form)
 
 \subsubsection{Compiling Extended Modules}
 \begin{code}
-x2sModule :: (Ident -> Int) -> Module1 -> Module1
-x2sModule cval (nm,vdcl,cmmds)
+x2sModule :: [Ident] -> (Ident -> Int) -> Module1 -> Module1
+x2sModule fxparnms cval (nm,vdcl,cmmds)
   = ( nm
     , concat $ map (x2sVDecl cval) vdcl
-    , map (x2sCommand cval) cmmds )
+    , map (x2sCommand fxparnms cval) cmmds )
 \end{code}
 
 \newpage
@@ -809,10 +809,13 @@ x2sVDecl _ vdcl = [vdcl]
 -- we assume n1 and n2 are either ints, or a constant known to cval
 collArrBounds :: (Ident -> Int) -> [(Int,Int)] -> Type -> (Type,[(Int,Int)])
 collArrBounds cval bounds (ArrT n1 n2 t)
-  = collArrBounds cval ((numEval cval n1,numEval cval n2):bounds) t
+  = collArrBounds cval (numEval2 cval (n1,n2) : bounds) t
 collArrBounds cval bounds basetype  =  (basetype,reverse bounds)
 
-numEval :: (Ident ->Int) -> Expr -> Int
+numEval2 :: (Ident->Int) -> (Expr,Expr) -> (Int,Int)
+numEval2 envf (e1,e2) = (numEval envf e1, numEval envf e2)
+
+numEval :: (Ident->Int) -> Expr -> Int
 -- will fail at runtime if expression is not known to be a number
 numEval _    (I i) = i
 numEval envf (N n) = envf n
@@ -829,8 +832,8 @@ variant n = '_' : show n
 
 \subsubsection{Compiling Extended Commands}
 \begin{code}
-x2sCommand :: (Ident -> Int) -> Command -> Command
-x2sCommand cval x = x
+x2sCommand :: [Ident] -> (Ident -> Int) -> Command -> Command
+x2sCommand fxparnms cval x = x
 \end{code}
 
 \newpage
@@ -841,10 +844,10 @@ The extensions to formulas include the addition of arguments to formulas.
 {The \texttt{for}-construct can only be used in formulas without arguments.}
 
 \begin{code}
-x2sFormula :: [String] -> (Ident -> Int) -> Formula -> [Formula]
-x2sFormula pfnames cval (Formula nm [] body)
-  =  [Formula nm [] $ x2sExpr pfnames cval body]
-x2sFormula pfnames cval form@(Formula nm args body)
+x2sFormula :: [Ident] -> [Ident] -> (Ident -> Int) -> Formula -> [Formula]
+x2sFormula pfnames fxparnms cval (Formula nm [] body)
+  =  [Formula nm [] $ x2sExpr pfnames fxparnms cval body]
+x2sFormula pfnames fxparnms cval form@(Formula nm args body)
   =  [form] -- for now...
 \end{code}
 
@@ -861,9 +864,10 @@ and the \texttt{for}-construct.
 can only be to the variables declared in the enclosing \texttt{for}-construct}
 
 \begin{code}
-x2sExpr :: [String] -> (Ident -> Int) -> Expr -> Expr
-x2sExpr pfnames cval (AF vdcls op g e) = x2sFor pfnames cval vdcls op g e
-x2sExpr pfnames cval e = e
+x2sExpr :: [Ident] -> [Ident] -> (Ident -> Int) -> Expr -> Expr
+x2sExpr pfnames fxparnms cval (AF vdcls op g e)
+  = x2sFor pfnames  fxparnms cval vdcls op g e
+x2sExpr pfnames fxparnms cval e = e
 \end{code}
 
 \subsubsection{Compiling For-Expressions}
@@ -898,10 +902,81 @@ cand_3_2 ? 1 : 0
 We finish by applying the operator \texttt{op} to the list of the outcomes,
 with some removal of unit values.
 \begin{code}
-x2sFor :: [String] -> (Ident->Int) -> [ADecl] -> String -> Expr -> Expr -> Expr
-x2sFor pfnames cval vdcls op g e
+x2sFor :: [Ident] -> [Ident] -> (Ident->Int)
+       -> [ADecl] -> String -> Expr -> Expr
+       -> Expr
+x2sFor pfnames fxparnms cval adcls op g e
   = let
-    in AF vdcls op g e -- for now
+      (bvars,bounds) = unzip adcls
+      variants = bounds2variants $ map (numEval2 cval) bounds
+      bodies = catMaybes $ map (specialiseBody fxparnms cval bvars g e) variants
+    in AF adcls op g e -- for now
+\end{code}
+
+Specialising the body of an array expression.
+We assume that the length of \texttt{bvars} and \texttt{variant}
+are the same.
+
+\WF{array guards}
+{\texttt{for}-construct guard-expressions are boolean-valued,
+and their value depends only on the array index variables}
+\begin{code}
+specialiseBody fxparnms cval bvars g e variant
+  = let
+      instf = aget $ zip bvars variant
+      g' = specialiseExpr bvars instf g
+      gv = exprEval fxparnms cval g'
+    in Just e
+\end{code}
+
+Specialising an expression:
+\begin{code}
+specialiseExpr bvars instf e@(N n)
+  | n `elem` bvars  =  I $ instf n
+  | otherwise       =  e
+specialiseExpr bvars instf e@(N' n)
+  | n `elem` bvars  =  I $ instf n
+  | otherwise       =  e
+specialiseExpr bvars instf (F nm es)
+  = F nm $ map (specialiseExpr bvars instf) es
+specialiseExpr bvars instf (P e1 e2)
+  = P (specialiseExpr bvars instf e1) (specialiseExpr bvars instf e2)
+specialiseExpr bvars instf (AI e1 e2)
+  = AI (specialiseExpr bvars instf e1) (specialiseExpr bvars instf e2)
+specialiseExpr bvars instf (AF adcls op e1 e2)
+  = let
+      bvars' = bvars \\ (map fst adcls)
+    in AF adcls op (specialiseExpr bvars' instf e1) (specialiseExpr bvars' instf e2)
+-- note - we don't expect arrays here, for now !
+specialiseExpr bvars instf e = e
+\end{code}
+
+Evaluating an expression.
+We only handle atomic expressions and function/operator applications.
+\begin{code}
+exprEval fxparnms cval e@(N n)
+ | n `elem` fxparnms  =  I $ cval n
+ | otherwise          =  e
+exprEval fxparnms cval e@(N' n)
+ | n `elem` fxparnms  =  I $ cval n
+ | otherwise          =  e
+exprEval fxparnms cval e@(F op es)
+  = case opEval fxparnms cval op $ map (exprEval fxparnms cval) es of
+      Nothing  ->  e
+      Just e'  ->  e'
+exprEval fxparnms cval e = e
+\end{code}
+
+Evaluating an operator.
+We succeed if all the sub-expressions are values of the same type,
+that is also compatible with the specific operator.
+For now we assume all arithmetic is done only on integer values.
+Later, we should design the evaluator to mimic that of Prism.
+For now, we just handle the integer not-equal operator.
+\begin{code}
+opEval fxparnms cval op [] = Nothing
+opEval fxparnms cval "!=" [I i1, I i2]  = Just $ B (i1 == i2)
+opEval _ _ _ _ = Nothing
 \end{code}
 
 
