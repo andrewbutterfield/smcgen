@@ -910,9 +910,11 @@ x2sFor pfnames fxparnms cval adcls op g e
       (bvars,bounds) = unzip adcls
       variants = bounds2variants $ map (numEval2 cval) bounds
       bodies = catMaybes $ map (specialiseBody fxparnms cval bvars g e) variants
-    in AF adcls op g e -- for now
+      bodies' = map (specialiseFormCall pfnames) bodies
+    in F op bodies'
 \end{code}
 
+\newpage
 Specialising the body of an array expression.
 We assume that the length of \texttt{bvars} and \texttt{variant}
 are the same.
@@ -925,8 +927,10 @@ specialiseBody fxparnms cval bvars g e variant
   = let
       instf = aget $ zip bvars variant
       g' = specialiseExpr bvars instf g
-      gv = exprEval fxparnms cval g'
-    in Just e
+    in case exprEval fxparnms cval g' of
+      (B False)  ->  Nothing
+      (B True) -> Just $ specialiseExpr bvars instf e
+      gv  ->  Just (gv .=> specialiseExpr bvars instf e)
 \end{code}
 
 Specialising an expression:
@@ -946,7 +950,8 @@ specialiseExpr bvars instf (AI e1 e2)
 specialiseExpr bvars instf (AF adcls op e1 e2)
   = let
       bvars' = bvars \\ (map fst adcls)
-    in AF adcls op (specialiseExpr bvars' instf e1) (specialiseExpr bvars' instf e2)
+    in AF adcls op (specialiseExpr bvars' instf e1)
+                   (specialiseExpr bvars' instf e2)
 -- note - we don't expect arrays here, for now !
 specialiseExpr bvars instf e = e
 \end{code}
@@ -975,10 +980,24 @@ Later, we should design the evaluator to mimic that of Prism.
 For now, we just handle the integer not-equal operator.
 \begin{code}
 opEval fxparnms cval op [] = Nothing
-opEval fxparnms cval "!=" [I i1, I i2]  = Just $ B (i1 == i2)
+opEval fxparnms cval "!=" [I i1, I i2]  = Just $ B (i1 /= i2)
 opEval _ _ _ _ = Nothing
 \end{code}
 
+Look for calls involving parameterised formula names
+and convert to appropriate identifiers.
+\begin{code}
+specialiseFormCall :: [Ident] -> Expr -> Expr
+specialiseFormCall pfnames (F nm es)
+ | nm `elem` pfnames && allArgsInt = N (nm++ concat (map variant intargs))
+ where
+   es' = map (specialiseFormCall pfnames) es
+   (allArgsInt,intargs) = chkIntArgs es'
+   chkIntArgs [] = (True,[])
+   chkIntArgs (I i:rest) = let (ok,args') = chkIntArgs rest in (ok,i:args')
+   chkIntArgs _ = (False,[])
+specialiseFormCall pfnames e = e
+\end{code}
 
 \subsection{Random Code bits}
 

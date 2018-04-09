@@ -60,24 +60,16 @@ endmodule
 // Formulae:
 // -----
 
-formula writeable = 
-  for  x:[1..b] apply +
-  over true -> (fm_clean[x] != 0 ? 1 : 0)
+formula writeable = (fm_clean[1] != 0 ? 1 : 0) + (fm_clean[2] != 0 ? 1 : 0) + (fm_clean[3] != 0 ? 1 : 0)
 
 formula dirty(x:[1..b]) = p - fm_clean[x]
 
 formula cand(x:[1..b],y:[1..b]) = x != y & dirty(x) > 0 & fm_clean[x] >= dirty(x)
 
-formula candidates = 
-  for  x:[1..b],y:[1..b] apply +
-  over x != y -> (cand(x,y) ? 1 : 0)
+formula candidates = (cand(1,2) ? 1 : 0) + (cand(1,3) ? 1 : 0) + (cand(2,1) ? 1 : 0) + (cand(2,3) ? 1 : 0) + (cand(3,1) ? 1 : 0) + (cand(3,2) ? 1 : 0)
 
-formula can_erase = 
-  for  x:[1..b] apply &
-  over true -> fm_erase[x] < w
+formula can_erase = fm_erase[1] < w & fm_erase[2] < w & fm_erase[3] < w
 
 formula diff(x:[1..b],y:[1..b]) = fm_erase[x] - fm_erase[y]
 
-formula toobig = 
-  for  x:[1..b],y:[1..b] apply |
-  over x != y -> diff(x,y) >= MAXDIFF
+formula toobig = diff(1,2) >= MAXDIFF | diff(1,3) >= MAXDIFF | diff(2,1) >= MAXDIFF | diff(2,3) >= MAXDIFF | diff(3,1) >= MAXDIFF | diff(3,2) >= MAXDIFF
