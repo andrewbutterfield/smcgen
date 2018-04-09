@@ -9,6 +9,9 @@ LICENSE: BSD3, see file LICENSE at smcgen root
 module Abs1 ( flash1, abs1 ) where
 import Data.List
 import Data.Maybe
+
+import Debug.Trace
+dbg msg x = trace (msg ++ show x) x
 \end{code}
 
 We now take a fresh look at the initial \texttt{Flash.prism} example,
@@ -849,6 +852,7 @@ x2sFormula pfnames fxparnms cval (Formula nm [] body)
   =  [Formula nm [] $ x2sExpr pfnames fxparnms cval body]
 x2sFormula pfnames fxparnms cval form@(Formula nm args body)
   =  [form] -- for now...
+  where x = x2sFor pfnames  fxparnms cval args "" true body
 \end{code}
 
 \newpage
@@ -865,8 +869,8 @@ can only be to the variables declared in the enclosing \texttt{for}-construct}
 
 \begin{code}
 x2sExpr :: [Ident] -> [Ident] -> (Ident -> Int) -> Expr -> Expr
-x2sExpr pfnames fxparnms cval (AF vdcls op g e)
-  = x2sFor pfnames  fxparnms cval vdcls op g e
+x2sExpr pfnames fxparnms cval (AF adcls op g e)
+  = x2sFor pfnames  fxparnms cval adcls op g e
 x2sExpr pfnames fxparnms cval e = e
 \end{code}
 
@@ -985,17 +989,20 @@ opEval _ _ _ _ = Nothing
 \end{code}
 
 Look for calls involving parameterised formula names
+and array indexing
 and convert to appropriate identifiers.
 \begin{code}
 specialiseFormCall :: [Ident] -> Expr -> Expr
 specialiseFormCall pfnames (F nm es)
  | nm `elem` pfnames && allArgsInt = N (nm++ concat (map variant intargs))
+ | otherwise  =  F nm es'
  where
    es' = map (specialiseFormCall pfnames) es
    (allArgsInt,intargs) = chkIntArgs es'
    chkIntArgs [] = (True,[])
    chkIntArgs (I i:rest) = let (ok,args') = chkIntArgs rest in (ok,i:args')
    chkIntArgs _ = (False,[])
+specialiseFormCall pfnames (AI (N n) (I i))  =  N (n ++ "_" ++ show i)
 specialiseFormCall pfnames e = e
 \end{code}
 
