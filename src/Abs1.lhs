@@ -1007,17 +1007,17 @@ specialiseExpr bvars instf (P e1 e2)
   = P (specialiseExpr bvars instf e1) (specialiseExpr bvars instf e2)
 specialiseExpr bvars instf (AI e1 e2)
   = AI (specialiseExpr bvars instf e1) (specialiseExpr bvars instf e2)
+specialiseExpr bvars instf (UA n e1 e2)
+  = UA n (specialiseExpr bvars instf e1) (specialiseExpr bvars instf e2)
 specialiseExpr bvars instf (AF adcls op e1 e2)
   = let
       bvars' = bvars \\ (map fst adcls)
     in AF adcls op (specialiseExpr bvars' instf e1)
                    (specialiseExpr bvars' instf e2)
--- note - we don't expect arrays here, for now !
 specialiseExpr bvars instf e = e
 \end{code}
 
 Evaluating an expression.
-We only handle atomic expressions and function/operator applications.
 \begin{code}
 exprEval fxparnms cval e@(N n)
  | n `elem` fxparnms  =  I $ cval n
@@ -1026,6 +1026,11 @@ exprEval fxparnms cval e@(F op es)
   = case opEval fxparnms cval op $ map (exprEval fxparnms cval) es of
       Nothing  ->  e
       Just e'  ->  e'
+exprEval fxparnms cval (U n e) = U n $ exprEval fxparnms cval e
+exprEval fxparnms cval (P e1 e2)
+  = P (exprEval fxparnms cval e1) (exprEval fxparnms cval e2)
+exprEval fxparnms cval (UA n e1 e2)
+  = UA n (exprEval fxparnms cval e1) (exprEval fxparnms cval e2)
 exprEval fxparnms cval e = e
 \end{code}
 
@@ -1055,8 +1060,9 @@ specialiseFormCall pfnames (F nm es)
    chkIntArgs [] = (True,[])
    chkIntArgs (I i:rest) = let (ok,args') = chkIntArgs rest in (ok,i:args')
    chkIntArgs _ = (False,[])
-specialiseFormCall pfnames (AI (N n)  (I i))  =  N  (n ++ "_" ++ show i)
-specialiseFormCall pfnames (UA n (I i) e)  =  U (n ++ "_" ++ show i) e
+specialiseFormCall pfnames (AI (N n) (I i))  =  N  (n ++ "_" ++ show i)
+specialiseFormCall pfnames (UA n (I i) e)
+  =  U (n ++ "_" ++ show i) $ specialiseFormCall pfnames e
 specialiseFormCall pfnames (P e1 e2)
  = P (specialiseFormCall pfnames e1) (specialiseFormCall pfnames e2)
 specialiseFormCall pfnames e = e
