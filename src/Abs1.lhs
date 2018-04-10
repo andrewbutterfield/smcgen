@@ -394,7 +394,7 @@ formula cand(x,y:[1..b]) = x!=y -> dirty(x)>0 & fm_clean[y] >= dirty(x);
 _cand
   = PFormula "cand" [("x",one2b),("y",one2b)]
              (x .!= y)
-             ( dirty(x) .> _0 .& fm_clean[x] .>= dirty(x) )
+             ( dirty(x) .> _0 .& fm_clean[y] .>= dirty(x) )
 cand (e, f) = F "cand" [e,f]
 \end{code}
 \begin{prism}
@@ -833,9 +833,9 @@ bounds2variants bounds = lprod $ map bExp bounds
 
 bExp (n1,n2) = [n1..n2]
 
-declVV i btyp ns = Var (i ++ concat (map variant ns)) btyp
+declVV i btyp ns = Var (i ++ concat (map pvalue2str ns)) btyp
 
-variant n = '_' : show n
+pvalue2str n = '_' : show n
 \end{code}
 
 \subsubsection{Compiling Extended Commands}
@@ -855,16 +855,23 @@ The extensions to formulas include the addition of arguments to formulas.
 x2sFormula :: [Ident] -> [Ident] -> (Ident -> Int) -> Formula -> [Formula]
 x2sFormula pfnames fxparnms cval (Formula nm body)
   =  [Formula nm $ x2sExpr pfnames fxparnms cval body]
-x2sFormula pfnames fxparnms cval form@(PFormula nm args grd body)
-  =  [PFormula nm args (F "GRDS" grds') (F "BODY" bodies'')] -- for now...
+x2sFormula pfnames fxparnms cval form@(PFormula fnm args grd body)
+  =  map pformula stuff'
   where
-    grds'  = map (exprEval fxparnms cval)
-                 $ unwrap $ x2sFor pfnames fxparnms cval args "" true grd
-    bodies'      = unwrap $ x2sFor pfnames fxparnms cval args "" true body
-    (nms',variants') = genParameterVariants cval args
-    unwrap (F "" es) = es
-    bodies'' = map snd $ filter (theBool . fst) $ zip grds' bodies'
+    (pnms,variants) = genParameterVariants cval args
+    instfs = map (aget . zip pnms) variants
+    grds'    =  map (exprEval fxparnms cval . specialiseExpr' pnms grd) instfs
+    fnms' = map (specialiseFName pnms fnm) instfs
+    bodies'  =  map (specialiseExpr' pnms body) instfs
+    stuff = zip grds' $ zip fnms' bodies'
+    stuff' = map snd $ filter (theBool . fst) stuff
     theBool (B b) = b
+    pformula (fnm',body') = Formula fnm' body'
+
+    specialiseExpr' pnms e instf  =  specialiseExpr pnms instf e
+
+    specialiseFName pnms fnm instf
+     = fnm ++ concat (map (pvalue2str . instf) pnms)
 \end{code}
 
 \newpage
@@ -1011,7 +1018,7 @@ and convert to appropriate identifiers.
 \begin{code}
 specialiseFormCall :: [Ident] -> Expr -> Expr
 specialiseFormCall pfnames (F nm es)
- | nm `elem` pfnames && allArgsInt = N (nm++ concat (map variant intargs))
+ | nm `elem` pfnames && allArgsInt = N (nm++ concat (map pvalue2str intargs))
  | otherwise  =  F nm es'
  where
    es' = map (specialiseFormCall pfnames) es
