@@ -522,10 +522,10 @@ Rewritten ``our style'':
 \end{prism}
 \begin{code}
 cmd1 = Cmd [] (pc .= _INIT)
-           ( ( AF [("x",one2b)]
+           ( AF [("x",one2b)]
                 "&"
                 true
-                ( fm_clean'[x] .= p) .& fm_erase[x] .= _0 .& pc' .= _WRITE ) )
+                ( fm_clean'[x] .= p .& fm_erase'[x] .= _0 .& pc' .= _WRITE ) )
 \end{code}
 \begin{prism}
 [] pc=WRITE & i<c & writeable!=0 ->
@@ -533,7 +533,7 @@ cmd1 = Cmd [] (pc .= _INIT)
     (fm_clean[x]>0?1/writeable:0): (fm_clean'[x]=fm_clean[x]-1) & (i'=i+1);
 \end{prism}
 \begin{code}
-cmd2 = Cmd [] (pc .= _WRITE .& writeable .!= _0)
+cmd2 = Cmd [] (pc .= _WRITE .& i .< c .& writeable .!= _0)
            ( AF [("x",one2b)]
                 "+"
                 true
@@ -563,7 +563,8 @@ cmd5 = Cmd [] (pc .= _SELECT .& ( candidates .= _0 .| lnot can_erase ) )
 \begin{prism}
 [] pc=SELECT & candidates!=0 & can_erase ->
   for from,to:[1..b] apply + over
-  from != to ->  cand(from,to) ? 1/candidates : 0):
+    from != to ->
+     cand(from,to) ? 1/candidates : 0):
      (fm_clean[to]'=fm_clean[to]-dirty(from)) &
      (fm_clean[from]'=p) & (fm_erase[from]'=fm_erase[from]+1) &
      (i'=0) & (pc'=WRITE) ;
@@ -680,6 +681,7 @@ prismC fpars (Cmd syncs grd upd)
   = '\n':show syncs
     ++ " "    ++ prismE fpars grd
     ++ " -> " ++ prismE fpars upd
+    ++ " ;"
 \end{code}
 
 \subsubsection{Generating Prism Formul\ae}
@@ -688,11 +690,14 @@ prismFs :: (String -> Maybe Int) -> [Formula] -> [String]
 prismFs fpars = map (prismF fpars)
 
 prismF fpars (Formula nm body)
-  = "\nformula "++nm++" = "++prismE fpars body
+  = "\nformula "++nm++" = "++prismE fpars body ++ " ;"
 prismF fpars (PFormula nm args grd body)
   = "\nformula "
        ++ nm ++ "(" ++ prismADs fpars args ++ ") = "
-       ++ prismE fpars grd ++ " -> " ++ prismE fpars body
+       ++ optGrd fpars grd ++ prismE fpars body ++ " ;"
+
+optGrd fpars (B True) = ""
+optGrd fpars grd = prismE fpars grd ++ " -> "
 
 prismADs fpars adecls  = intercalate "," (map (prismAD fpars) adecls)
 
@@ -726,9 +731,12 @@ prismE fpars expr
     prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' pc expr
     prismE' pc (AI arr idx) = prismE' pc arr ++ "["++prismE' 0 idx++"]"
     prismE' pc (AF adcls op grd expr)
-     =    "\n  for  " ++ prismADs fpars adcls ++ " apply " ++ op
-       ++ "\n  over " ++ prismE' 0 grd
-       ++ " -> " ++ prismE' 0 expr
+      | pc == 0 = "\n" ++ forstr
+      | otherwise  =  "\n  (" ++ forstr ++ ")"
+      where
+       forstr =
+           "  for  " ++ prismADs fpars adcls ++ " apply " ++ op
+        ++ " over \n    " ++ optGrd fpars grd ++ prismE' 0 expr
 \end{code}
 
 The treatment of function/operators is complicated.
@@ -772,7 +780,7 @@ are all just standard.
 x2sPrism :: [(String,Int)] -> Prism1 -> Prism1
 x2sPrism fixedpars (smod,cdcl,ms,form)
  = ( smod ,cdcl
-   , map (x2sModule fxparnms cval) ms
+   , map (x2sModule pfnames fxparnms cval) ms
    , concat $ map (x2sFormula pfnames fxparnms cval) form )
  where
    fxparnms = map fst fixedpars
@@ -789,15 +797,15 @@ x2sPrism fixedpars (smod,cdcl,ms,form)
 
 \subsubsection{Compiling Extended Modules}
 \begin{code}
-x2sModule :: [Ident] -> (Ident -> Int) -> Module1 -> Module1
-x2sModule fxparnms cval (nm,vdcl,cmmds)
+x2sModule :: [Ident] -> [Ident] -> (Ident -> Int) -> Module1 -> Module1
+x2sModule pfnames fxparnms cval (nm,vdcl,cmmds)
   = ( nm
     , concat $ map (x2sVDecl cval) vdcl
-    , map (x2sCommand fxparnms cval) cmmds )
+    , map (x2sCommand pfnames fxparnms cval) cmmds )
 \end{code}
 
 \newpage
-\subsubsection{Compiling Extended Variables}
+\subsubsection{Compiling Extended Variable Declarations}
 The extended declarations are those involving an array type.
 
 \WF{array bounds}
@@ -839,9 +847,26 @@ pvalue2str n = '_' : show n
 \end{code}
 
 \subsubsection{Compiling Extended Commands}
+
+We assume that \texttt{for}-constructs occur
+only in the command body,
+and only at the top level.
 \begin{code}
-x2sCommand :: [Ident] -> (Ident -> Int) -> Command -> Command
-x2sCommand fxparnms cval x = x
+x2sCommand :: [Ident] -> [Ident] -> (Ident -> Int) -> Command -> Command
+x2sCommand pfnames fxparnms cval (Cmd synch cgrd (AF adcls op bgrd body))
+ = let
+    (pnms,variants) = genParameterVariants cval adcls
+    instfs = map (aget . zip pnms) variants
+    grds' =  map (exprEval fxparnms cval . specialiseExpr' pnms bgrd) instfs
+    bodies'  =  map (specialiseFormCall pfnames . specialiseExpr' pnms body)
+                    instfs
+    stuff = zip grds' bodies'
+    bodies'' = map snd $ filter (theBool . fst) stuff
+    theBool (B b) = b
+   in Cmd synch cgrd $ F op bodies''
+x2sCommand pfnames fxparnms cval cmd = cmd
+
+specialiseExpr' pnms e instf  =  specialiseExpr pnms instf e
 \end{code}
 
 \newpage
@@ -862,16 +887,15 @@ x2sFormula pfnames fxparnms cval form@(PFormula fnm args grd body)
     instfs = map (aget . zip pnms) variants
     grds'    =  map (exprEval fxparnms cval . specialiseExpr' pnms grd) instfs
     fnms' = map (specialiseFName pnms fnm) instfs
-    bodies'  =  map (specialiseExpr' pnms body) instfs
+    bodies'  =  map (specialiseFormCall pfnames . specialiseExpr' pnms body)
+                    instfs
     stuff = zip grds' $ zip fnms' bodies'
     stuff' = map snd $ filter (theBool . fst) stuff
     theBool (B b) = b
     pformula (fnm',body') = Formula fnm' body'
 
-    specialiseExpr' pnms e instf  =  specialiseExpr pnms instf e
-
-    specialiseFName pnms fnm instf
-     = fnm ++ concat (map (pvalue2str . instf) pnms)
+specialiseFName pnms fnm instf
+  = fnm ++ concat (map (pvalue2str . instf) pnms)
 \end{code}
 
 \newpage
@@ -889,7 +913,7 @@ can only be to the variables declared in the enclosing \texttt{for}-construct}
 \begin{code}
 x2sExpr :: [Ident] -> [Ident] -> (Ident -> Int) -> Expr -> Expr
 x2sExpr pfnames fxparnms cval (AF adcls op g e)
-  = x2sFor pfnames  fxparnms cval adcls op g e
+  = x2sFor pfnames fxparnms cval adcls op g e
 x2sExpr pfnames fxparnms cval e = e
 \end{code}
 
@@ -1026,7 +1050,10 @@ specialiseFormCall pfnames (F nm es)
    chkIntArgs [] = (True,[])
    chkIntArgs (I i:rest) = let (ok,args') = chkIntArgs rest in (ok,i:args')
    chkIntArgs _ = (False,[])
-specialiseFormCall pfnames (AI (N n) (I i))  =  N (n ++ "_" ++ show i)
+specialiseFormCall pfnames (AI (N n)  (I i))  =  N  (n ++ "_" ++ show i)
+specialiseFormCall pfnames (AI (N' n) (I i))  =  N' (n ++ "_" ++ show i)
+specialiseFormCall pfnames (P e1 e2)
+ = P (specialiseFormCall pfnames e1) (specialiseFormCall pfnames e2)
 specialiseFormCall pfnames e = e
 \end{code}
 
