@@ -62,7 +62,8 @@ data Expr
   | I Int    -- literal int
   | D Double -- literal double
   | N Ident  -- variable/constant name
-  | N' Ident -- after-value of N
+  | U Ident Expr -- simple variable update
+  | UA Ident Expr Expr -- array variable update
   | F String -- function name /operator symbol
       [Expr] -- function/operator arguments
   | P Expr  -- probability
@@ -114,9 +115,13 @@ infixl 3 .&  ;  e1 .&  e2  =  aF "&"   [e1,e2]
 infixl 2 .|  ;  e1 .|  e2  =  aF "|"   [e1,e2]
 infix  1 <=> ;  e1 <=> e2  =   F "<=>" [e1,e2]
 infix  0 .=> ;  e1 .=> e2  =   F "=>"  [e1,e2]
+-- faking updates
+infix  4 .:=  ;  n  .:= e   =  n e
+
 -- faking e0 .? e1 .: e2 -->
 infix  1 .:  ;  e1 .: e2   =           [e1,e2]
 infix  0 .?  ;  e0 .? es   =   F "?:"  (e0:es)
+
 
 isInfix [c] = c `elem` "/*+-=<>&|"
 isInfix nm = nm `elem` ["!=",">=","<=","<=>","=>"]
@@ -138,8 +143,8 @@ prec "<=>"  =  2
 prec "=>"   =  1
 prec _      =  0
 
-
 lnot e = F "!" [e]
+
 \end{code}
 
 We have defined a number of functions that optimise certain
@@ -304,10 +309,10 @@ vdecl
     , VInit "i" (rngT _0 c) _0
     ]
  -- as most commonly used expressions
-fm_clean[x] = AI (N "fm_clean") x ; fm_clean'[x] = AI (N' "fm_clean") x
-fm_erase[x] = AI (N "fm_erase") x ; fm_erase'[x] = AI (N' "fm_erase") x
-pc       = N "pc"       ; pc'       = N' "pc"
-i        = N "i"        ; i'        = N' "i"
+fm_clean[x] = AI (N "fm_clean") x ; fm_clean'[x] e = UA "fm_clean" x e
+fm_erase[x] = AI (N "fm_erase") x ; fm_erase'[x] e = UA "fm_erase" x e
+pc       = N "pc"       ; pc' e     = U "pc" e
+i        = N "i"        ; i'  e     = U "i"  e
 \end{code}
 
 \newpage
@@ -521,11 +526,12 @@ Rewritten ``our style'':
   & (pc'=WRITE);
 \end{prism}
 \begin{code}
-cmd1 = Cmd [] (pc .= _INIT)
-           ( AF [("x",one2b)]
-                "&"
-                true
-                ( fm_clean'[x] .= p .& fm_erase'[x] .= _0 .& pc' .= _WRITE ) )
+cmd1
+ = Cmd [] (pc .= _INIT)
+       ( AF [("x",one2b)]
+            "&"
+            true
+            ( fm_clean'[x] .:= p .& fm_erase'[x] .:= _0 .& pc' .:= _WRITE ) )
 \end{code}
 \begin{prism}
 [] pc=WRITE & i<c & writeable!=0 ->
@@ -538,27 +544,27 @@ cmd2 = Cmd [] (pc .= _WRITE .& i .< c .& writeable .!= _0)
                 "+"
                 true
                 ( P (fm_clean[x] .> _0 .? _1./writeable .: _0)
-                    ( fm_clean'[x] .= fm_clean[x]
-                      .& i' .= i .+ _1 ) ) )
+                    ( fm_clean'[x] .:= fm_clean[x]
+                      .& i' .:= (i .+ _1 ) ) ) )
 \end{code}
 \begin{prism}
 [] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
 \end{prism}
 \begin{code}
-cmd3 = Cmd [] (pc .= _WRITE .& writeable .= _0) (pc' .= _FINISH)
+cmd3 = Cmd [] (pc .= _WRITE .& writeable .= _0) (pc' .:= _FINISH)
 \end{code}
 \begin{prism}
 [] pc=WRITE & i=c -> (pc'=SELECT);
 \end{prism}
 \begin{code}
-cmd4 = Cmd [] (pc .= _WRITE .& i .= c) (pc' .= _SELECT)
+cmd4 = Cmd [] (pc .= _WRITE .& i .= c) (pc' .:= _SELECT)
 \end{code}
 \begin{prism}
 [] pc=SELECT & (candidates=0 | !can_erase) -> (pc'=FINISH);
 \end{prism}
 \begin{code}
 cmd5 = Cmd [] (pc .= _SELECT .& ( candidates .= _0 .| lnot can_erase ) )
-              (pc' .= _FINISH)
+              (pc' .:= _FINISH)
 \end{code}
 \begin{prism}
 [] pc=SELECT & candidates!=0 & can_erase ->
@@ -576,10 +582,10 @@ cmd6 = Cmd [] (pc .= _SELECT .& candidates .!= _0 .& can_erase)
                 "+"
                 (from .!= to)
                 ( P (  cand(from,to) .? _1./candidates .: _0)
-                    ( fm_clean'[to] .= fm_clean[to] .- dirty(from)
-                      .& fm_clean'[from] .= p
-                      .& fm_erase'[from] .= fm_erase[from] .+ _1
-                      .& i' .= _0 .& pc' .= _WRITE ) ) )
+                    ( fm_clean'[to] .:= fm_clean[to] .- dirty(from)
+                      .& fm_clean'[from] .:= p
+                      .& fm_erase'[from] .:= fm_erase[from] .+ _1
+                      .& i' .:= _0 .& pc' .:= _WRITE ) ) )
 \end{code}
 \begin{prism}
 [] pc=FINISH -> true;
@@ -727,9 +733,12 @@ prismE fpars expr
     prismE' pc (I i)  = show i
     prismE' pc (D d)  = show d
     prismE' pc (N n)  = n
-    prismE' pc (N' n)  = n ++ "'"
+    prismE' pc (U n e)  = "(" ++ n ++ "' = " ++ prismE' 0 e ++ ")"
     prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' pc expr
     prismE' pc (AI arr idx) = prismE' pc arr ++ "["++prismE' 0 idx++"]"
+    prismE' pc (UA n idx e)
+      = "(" ++ n ++ "'["++prismE' 0 idx ++ "] = "
+         ++ prismE' 0 e ++ ")"
     prismE' pc (AF adcls op grd expr)
       | pc == 0 = "\n" ++ forstr
       | otherwise  =  "\n  (" ++ forstr ++ ")"
@@ -990,9 +999,8 @@ Specialising an expression:
 specialiseExpr bvars instf e@(N n)
   | n `elem` bvars  =  I $ instf n
   | otherwise       =  e
-specialiseExpr bvars instf e@(N' n)
-  | n `elem` bvars  =  I $ instf n
-  | otherwise       =  e
+specialiseExpr bvars instf (U n e)
+  = U n $ specialiseExpr bvars instf e
 specialiseExpr bvars instf (F nm es)
   = F nm $ map (specialiseExpr bvars instf) es
 specialiseExpr bvars instf (P e1 e2)
@@ -1012,9 +1020,6 @@ Evaluating an expression.
 We only handle atomic expressions and function/operator applications.
 \begin{code}
 exprEval fxparnms cval e@(N n)
- | n `elem` fxparnms  =  I $ cval n
- | otherwise          =  e
-exprEval fxparnms cval e@(N' n)
  | n `elem` fxparnms  =  I $ cval n
  | otherwise          =  e
 exprEval fxparnms cval e@(F op es)
@@ -1051,7 +1056,7 @@ specialiseFormCall pfnames (F nm es)
    chkIntArgs (I i:rest) = let (ok,args') = chkIntArgs rest in (ok,i:args')
    chkIntArgs _ = (False,[])
 specialiseFormCall pfnames (AI (N n)  (I i))  =  N  (n ++ "_" ++ show i)
-specialiseFormCall pfnames (AI (N' n) (I i))  =  N' (n ++ "_" ++ show i)
+specialiseFormCall pfnames (UA n (I i) e)  =  U (n ++ "_" ++ show i) e
 specialiseFormCall pfnames (P e1 e2)
  = P (specialiseFormCall pfnames e1) (specialiseFormCall pfnames e2)
 specialiseFormCall pfnames e = e

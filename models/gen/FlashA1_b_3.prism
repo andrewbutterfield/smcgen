@@ -34,17 +34,17 @@ i: [0..c] init 0;
 // Commands:
 // -----
 
-[] pc = INIT -> fm_clean_1' = p & fm_erase_1' = 0 & pc' = WRITE & fm_clean_2' = p & fm_erase_2' = 0 & pc' = WRITE & fm_clean_3' = p & fm_erase_3' = 0 & pc' = WRITE ;
+[] pc = INIT -> (fm_clean'[x] = p) & (fm_erase'[x] = 0) & (pc' = WRITE) & (fm_clean'[x] = p) & (fm_erase'[x] = 0) & (pc' = WRITE) & (fm_clean'[x] = p) & (fm_erase'[x] = 0) & (pc' = WRITE) ;
 
-[] pc = WRITE & i < c & writeable != 0 -> ((fm_clean_1 > 0 ? 1 / writeable : 0)): (fm_clean_1' = fm_clean_1 & i' = i + 1) + ((fm_clean_2 > 0 ? 1 / writeable : 0)): (fm_clean_2' = fm_clean_2 & i' = i + 1) + ((fm_clean_3 > 0 ? 1 / writeable : 0)): (fm_clean_3' = fm_clean_3 & i' = i + 1) ;
+[] pc = WRITE & i < c & writeable != 0 -> ((fm_clean_1 > 0 ? 1 / writeable : 0)): ((fm_clean'[x] = fm_clean[x]) & (i' = i + 1)) + ((fm_clean_2 > 0 ? 1 / writeable : 0)): ((fm_clean'[x] = fm_clean[x]) & (i' = i + 1)) + ((fm_clean_3 > 0 ? 1 / writeable : 0)): ((fm_clean'[x] = fm_clean[x]) & (i' = i + 1)) ;
 
-[] pc = WRITE & writeable = 0 -> pc' = FINISH ;
+[] pc = WRITE & writeable = 0 -> (pc' = FINISH) ;
 
-[] pc = WRITE & i = c -> pc' = SELECT ;
+[] pc = WRITE & i = c -> (pc' = SELECT) ;
 
-[] pc = SELECT & (candidates = 0 | !(can_erase)) -> pc' = FINISH ;
+[] pc = SELECT & (candidates = 0 | !(can_erase)) -> (pc' = FINISH) ;
 
-[] pc = SELECT & candidates != 0 & can_erase -> ((cand_1_2 ? 1 / candidates : 0)): (fm_clean_2' = fm_clean_2 - dirty_1 & fm_clean_1' = p & fm_erase_1' = fm_erase_1 + 1 & i' = 0 & pc' = WRITE) + ((cand_1_3 ? 1 / candidates : 0)): (fm_clean_3' = fm_clean_3 - dirty_1 & fm_clean_1' = p & fm_erase_1' = fm_erase_1 + 1 & i' = 0 & pc' = WRITE) + ((cand_2_1 ? 1 / candidates : 0)): (fm_clean_1' = fm_clean_1 - dirty_2 & fm_clean_2' = p & fm_erase_2' = fm_erase_2 + 1 & i' = 0 & pc' = WRITE) + ((cand_2_3 ? 1 / candidates : 0)): (fm_clean_3' = fm_clean_3 - dirty_2 & fm_clean_2' = p & fm_erase_2' = fm_erase_2 + 1 & i' = 0 & pc' = WRITE) + ((cand_3_1 ? 1 / candidates : 0)): (fm_clean_1' = fm_clean_1 - dirty_3 & fm_clean_3' = p & fm_erase_3' = fm_erase_3 + 1 & i' = 0 & pc' = WRITE) + ((cand_3_2 ? 1 / candidates : 0)): (fm_clean_2' = fm_clean_2 - dirty_3 & fm_clean_3' = p & fm_erase_3' = fm_erase_3 + 1 & i' = 0 & pc' = WRITE) ;
+[] pc = SELECT & candidates != 0 & can_erase -> ((cand_1_2 ? 1 / candidates : 0)): ((fm_clean'[to] = fm_clean[to] - dirty(from)) & (fm_clean'[from] = p) & (fm_erase'[from] = fm_erase[from] + 1) & (i' = 0) & (pc' = WRITE)) + ((cand_1_3 ? 1 / candidates : 0)): ((fm_clean'[to] = fm_clean[to] - dirty(from)) & (fm_clean'[from] = p) & (fm_erase'[from] = fm_erase[from] + 1) & (i' = 0) & (pc' = WRITE)) + ((cand_2_1 ? 1 / candidates : 0)): ((fm_clean'[to] = fm_clean[to] - dirty(from)) & (fm_clean'[from] = p) & (fm_erase'[from] = fm_erase[from] + 1) & (i' = 0) & (pc' = WRITE)) + ((cand_2_3 ? 1 / candidates : 0)): ((fm_clean'[to] = fm_clean[to] - dirty(from)) & (fm_clean'[from] = p) & (fm_erase'[from] = fm_erase[from] + 1) & (i' = 0) & (pc' = WRITE)) + ((cand_3_1 ? 1 / candidates : 0)): ((fm_clean'[to] = fm_clean[to] - dirty(from)) & (fm_clean'[from] = p) & (fm_erase'[from] = fm_erase[from] + 1) & (i' = 0) & (pc' = WRITE)) + ((cand_3_2 ? 1 / candidates : 0)): ((fm_clean'[to] = fm_clean[to] - dirty(from)) & (fm_clean'[from] = p) & (fm_erase'[from] = fm_erase[from] + 1) & (i' = 0) & (pc' = WRITE)) ;
 
 [] pc = FINISH -> true ;
 
