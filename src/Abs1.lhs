@@ -522,16 +522,17 @@ Rewritten ``our style'':
 
 \begin{prism}
 [] pc=INIT ->
-  ( for x:[1..b] apply & over (fm_clean'[x]=p) & (fm_erase'[x]=0)) )
+  ( for x:[1..b] apply & over (fm_clean'[x]=p) & (fm_erase'[x]=0) )
   & (pc'=WRITE);
 \end{prism}
 \begin{code}
 cmd1
  = Cmd [] (pc .= _INIT)
-       ( AF [("x",one2b)]
-            "&"
-            true
-            ( fm_clean'[x] .:= p .& fm_erase'[x] .:= _0 .& pc' .:= _WRITE ) )
+       ( ( AF [("x",one2b)]
+              "&"
+              true
+              ( fm_clean'[x] .:= p .& fm_erase'[x] .:= _0  ) )
+         .& pc' .:= _WRITE )
 \end{code}
 \begin{prism}
 [] pc=WRITE & i<c & writeable!=0 ->
@@ -734,7 +735,7 @@ prismE fpars expr
     prismE' pc (D d)  = show d
     prismE' pc (N n)  = n
     prismE' pc (U n e)  = "(" ++ n ++ "' = " ++ prismE' 0 e ++ ")"
-    prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' pc expr
+    prismE' pc (P prob expr) = "("++prismE' 0 prob++"): "++ prismE' 0 expr
     prismE' pc (AI arr idx) = prismE' pc arr ++ "["++prismE' 0 idx++"]"
     prismE' pc (UA n idx e)
       = "(" ++ n ++ "'["++prismE' 0 idx ++ "] = "
