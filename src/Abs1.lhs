@@ -351,9 +351,16 @@ zero or more variable arguments,
 and a body-expression.
 We shall treat an update as an expression,
 that has dashed-forms of variables in it.
+We have tow variants here, as we want an explicit guard at the top-level
+if we have parameters
 \begin{code}
 data Formula
-  = Formula Ident [ADecl] Expr
+  = Formula Ident  -- formula name
+            Expr   -- formula expression - can be a for-construct
+  | PFormula Ident   -- formula name
+             [ADecl] -- parameter declarations (non-empty)
+             Expr    -- guard expression over parameters only
+             Expr    -- formula expression, no for-constructs.
   deriving (Eq,Show,Read)
 \end{code}
 
@@ -366,7 +373,7 @@ formula writeable = for x:[1..b] apply + over (fm_clean[x]!=0 ? 1 : 0);
 \begin{code}
 x = N "x" ; y = N "y"
 _writeable
-  = Formula "writeable" []
+  = Formula "writeable"
             $ AF [("x",(_1,b))]
                  "+"
                  true
@@ -377,9 +384,7 @@ writeable = N "writeable"
 formula dirty(x:[1..b]) = p-fm_clean[x];
 \end{prism}
 \begin{code}
-_dirty
-  = Formula "dirty" [("x",one2b)]
-            (p .- fm_clean[x])
+_dirty = PFormula "dirty" [("x",one2b)] true (p .- fm_clean[x])
 dirty e = F "dirty" [e]
 \end{code}
 \begin{prism}
@@ -387,10 +392,9 @@ formula cand(x,y:[1..b]) = x!=y -> dirty(x)>0 & fm_clean[y] >= dirty(x);
 \end{prism}
 \begin{code}
 _cand
-  = Formula "cand" [("x",one2b),("y",one2b)]
-            ( x .!= y .&
-              dirty(x) .> _0 .&
-              fm_clean[x] .>= dirty(x) )
+  = PFormula "cand" [("x",one2b),("y",one2b)]
+             (x .!= y)
+             ( dirty(x) .> _0 .& fm_clean[x] .>= dirty(x) )
 cand (e, f) = F "cand" [e,f]
 \end{code}
 \begin{prism}
@@ -398,7 +402,7 @@ formula candidates = for x,y:[1..b] apply + over x!=y -> cand(x,y)?1:0);
 \end{prism}
 \begin{code}
 _candidates
-  = Formula "candidates" []
+  = Formula "candidates"
             $ AF [("x",one2b),("y",one2b)]
                  "+"
                  ( x .!= y )
@@ -410,7 +414,7 @@ formula can_erase = for x:[1..b] apply & over fm_erase[x]<w ;
 \end{prism}
 \begin{code}
 _can_erase
-  = Formula "can_erase" []
+  = Formula "can_erase"
             $ AF [("x",one2b)]
                  "&"
                  true
@@ -418,12 +422,12 @@ _can_erase
 can_erase = N "can_erase"
 \end{code}
 \begin{prism}
-formula diff(x,y:[1..b]) = fm_erase(x)-fm_erase(y);
+formula diff(x,y:[1..b]) = x != y -> fm_erase(x)-fm_erase(y);
 \end{prism}
 \begin{code}
 _diff
-  = Formula "diff" [("x",one2b),("y",one2b)]
-            ( fm_erase[x] .- fm_erase[y] )
+  = PFormula "diff" [("x",one2b),("y",one2b)]
+             ( x .!= y ) ( fm_erase[x] .- fm_erase[y] )
 diff (e,f) = F "diff" [e,f]
 \end{code}
 \begin{prism}
@@ -431,7 +435,7 @@ formula toobig = for x,y:[1..b] apply | over x!=y -> diff(x,y) >= MAXDIFF)
 \end{prism}
 \begin{code}
 _toobig
-  = Formula "toobig" []
+  = Formula "toobig"
             $ AF [("x",one2b),("y",one2b)]
                  "|"
                  ( x .!= y )
@@ -683,12 +687,12 @@ prismC fpars (Cmd syncs grd upd)
 prismFs :: (String -> Maybe Int) -> [Formula] -> [String]
 prismFs fpars = map (prismF fpars)
 
-prismF fpars (Formula nm [] body)
+prismF fpars (Formula nm body)
   = "\nformula "++nm++" = "++prismE fpars body
-prismF fpars (Formula nm args body)
+prismF fpars (PFormula nm args grd body)
   = "\nformula "
        ++ nm ++ "(" ++ prismADs fpars args ++ ") = "
-       ++ prismE fpars body
+       ++ prismE fpars grd ++ " -> " ++ prismE fpars body
 
 prismADs fpars adecls  = intercalate "," (map (prismAD fpars) adecls)
 
@@ -778,7 +782,8 @@ x2sPrism fixedpars (smod,cdcl,ms,form)
    -- names of formulae with parameters
    pfnames = catMaybes $ map getPFN form
 
-   getPFN (Formula nm args _)  =  if null args then Nothing else Just nm
+   getPFN (PFormula nm args _ _)  =  if null args then Nothing else Just nm
+   getPFN _                       =  Nothing
 
 \end{code}
 
@@ -848,11 +853,18 @@ The extensions to formulas include the addition of arguments to formulas.
 
 \begin{code}
 x2sFormula :: [Ident] -> [Ident] -> (Ident -> Int) -> Formula -> [Formula]
-x2sFormula pfnames fxparnms cval (Formula nm [] body)
-  =  [Formula nm [] $ x2sExpr pfnames fxparnms cval body]
-x2sFormula pfnames fxparnms cval form@(Formula nm args body)
-  =  [form] -- for now...
-  where x = x2sFor pfnames  fxparnms cval args "" true body
+x2sFormula pfnames fxparnms cval (Formula nm body)
+  =  [Formula nm $ x2sExpr pfnames fxparnms cval body]
+x2sFormula pfnames fxparnms cval form@(PFormula nm args grd body)
+  =  [PFormula nm args (F "GRDS" grds') (F "BODY" bodies'')] -- for now...
+  where
+    grds'  = map (exprEval fxparnms cval)
+                 $ unwrap $ x2sFor pfnames fxparnms cval args "" true grd
+    bodies'      = unwrap $ x2sFor pfnames fxparnms cval args "" true body
+    (nms',variants') = genParameterVariants cval args
+    unwrap (F "" es) = es
+    bodies'' = map snd $ filter (theBool . fst) $ zip grds' bodies'
+    theBool (B b) = b
 \end{code}
 
 \newpage
@@ -911,11 +923,16 @@ x2sFor :: [Ident] -> [Ident] -> (Ident->Int)
        -> Expr
 x2sFor pfnames fxparnms cval adcls op g e
   = let
-      (bvars,bounds) = unzip adcls
-      variants = bounds2variants $ map (numEval2 cval) bounds
+      (bvars,variants) = genParameterVariants cval adcls
       bodies = catMaybes $ map (specialiseBody fxparnms cval bvars g e) variants
       bodies' = map (specialiseFormCall pfnames) bodies
     in F op bodies'
+
+genParameterVariants cval args
+  = let
+      (bvars,bounds) = unzip args
+      variants = bounds2variants $ map (numEval2 cval) bounds
+    in (bvars,variants)
 \end{code}
 
 \newpage
