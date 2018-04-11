@@ -24,7 +24,9 @@ Then, in a command-line/shell window at the top level of this repository, issue 
 
 `smcgen` --- runs the application.
 
-At present both the tests and the application are trivial stubs. This will change in the near future.
+At present the tests are trivial stubs. This should change in the near future.
+The application simply runs the latest version (currently Abstraction Level One)
+with parameter `b` ranging from 2 to 8.
 
 ## Pretty-Printing
 
@@ -44,4 +46,6 @@ The `app`, `src` and `test` folders contain Haskell source code. The modules tha
 * `Hack` : a quick and dirty way to take the original `init/Flash.prism` model, written with parameter `b` equal to three, and to generalise it to arbitrary `b`, greater than one.
 
 
+* `Abs1` : (Abstraction Level One) introduces (1) an abstract syntax for a version of Prism extended with arrays, as well as a compiler that converts this to standard Prism (`DSL1`) and (2) the initial Flash model encoded in this abstract syntax using the extended array features (`FlashA1`).
 
+We also have a `Utilities` module that has useful bits of Haskell code.
