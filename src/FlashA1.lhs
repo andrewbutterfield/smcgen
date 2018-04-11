@@ -62,7 +62,6 @@ pc: [INIT..FINISH] init INIT;
 i: [0..c] init 0;
 \end{prism}
 \begin{code}
-_0 = I 0
 one2b = (_1,b) -- rngT _1 b
 vdecl
   = [ Var "fm_clean" $ arrT _1 b $ rngT _0 p

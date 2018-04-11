@@ -53,6 +53,7 @@ isNum (N _)  =  True
 isNum _      =  False
 \end{code}
 
+\newpage
 Supported infix forms of \texttt{F} from \cite{KNP11},
 the most strongly binding first:
 \begin{verbatim}
@@ -116,6 +117,7 @@ lnot e = F "!" [e]
 
 \end{code}
 
+\newpage
 We have defined a number of functions that optimise certain
 situations, so that, for example, $a + (b + c)$ becomes $a + b + c$
 \begin{code}
@@ -127,7 +129,6 @@ assocflat nm (F nm' es':es)
 assocflat nm (e:es) = e : assocflat nm es
 \end{code}
 
-\newpage
 \subsection{Declarations}
 
 The first thing that we note is that the declaration of \texttt{fm\_clean\_2}
@@ -206,10 +207,10 @@ data VDecl
 
 \subsubsection{Declarations from Flash.prism}
 
-\paragraph{Constants}
+\paragraph{Constants}~
 
 \begin{code}
-_1 = I 1 ; _2 = I 2 ; _3 = I 3 ; _4 = I 4
+_0 = I 0 ; _1 = I 1 ; _2 = I 2 ; _3 = I 3 ; _4 = I 4
 \end{code}
 
 \newpage
@@ -388,6 +389,7 @@ prismT fpars (ArrT n1 n2 typ)
      ++ prismT fpars typ
 \end{code}
 
+\newpage
 \subsubsection{Generating Prism Expressions}
 \begin{code}
 prismE :: (String -> Maybe Int) -> Expr -> String
@@ -428,6 +430,7 @@ bracket pc pop str -- pc: context precedence, pop: operator precedence
  | otherwise  =  str
 \end{code}
 
+\newpage
 \subsection{Compiling Arrays Away}
 
 We have abstract syntax and code output for our extended form of Prism,
