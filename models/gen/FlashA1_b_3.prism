@@ -34,13 +34,11 @@ i: [0..c] init 0;
 // Commands:
 // -----
 
-[] pc = INIT -> 
-  (  for  x:[1..b] apply & over 
-    (fm_clean'[x] = p) & (fm_erase'[x] = 0)) & (pc' = WRITE) ;
+[] pc = INIT -> (fm_clean_1' = p) & (fm_erase_1' = 0) & (fm_clean_2' = p) & (fm_erase_2' = 0) & (fm_clean_3' = p) & (fm_erase_3' = 0) & (pc' = WRITE) ;
 
-[] pc = WRITE & i < c & writeable != 0 -> ((fm_clean_1 > 0 ? 1 / writeable : 0)): (fm_clean_1' = fm_clean_1) & (i' = i + 1) + ((fm_clean_2 > 0 ? 1 / writeable : 0)): (fm_clean_2' = fm_clean_2) & (i' = i + 1) + ((fm_clean_3 > 0 ? 1 / writeable : 0)): (fm_clean_3' = fm_clean_3) & (i' = i + 1) ;
+[] pc = WRITE & i < c & writeable != 0 -> ((fm_clean_1 > 0 ? 1 / writeable : 0)): (fm_clean_1' = fm_clean_1 - 1) & (i' = i + 1) + ((fm_clean_2 > 0 ? 1 / writeable : 0)): (fm_clean_2' = fm_clean_2 - 1) & (i' = i + 1) + ((fm_clean_3 > 0 ? 1 / writeable : 0)): (fm_clean_3' = fm_clean_3 - 1) & (i' = i + 1) ;
 
-[] pc = WRITE & writeable = 0 -> (pc' = FINISH) ;
+[] pc = WRITE & i < c & writeable = 0 -> (pc' = FINISH) ;
 
 [] pc = WRITE & i = c -> (pc' = SELECT) ;
 

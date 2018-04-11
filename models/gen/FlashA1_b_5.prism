@@ -38,25 +38,19 @@ i: [0..c] init 0;
 // Commands:
 // -----
 
-[] pc = INIT -> 
-  for  x: [1..b] apply &
-  over true -> fm_clean'[x] = p & fm_erase[x] = 0 & pc' = WRITE
+[] pc = INIT -> (fm_clean_1' = p) & (fm_erase_1' = 0) & (fm_clean_2' = p) & (fm_erase_2' = 0) & (fm_clean_3' = p) & (fm_erase_3' = 0) & (fm_clean_4' = p) & (fm_erase_4' = 0) & (fm_clean_5' = p) & (fm_erase_5' = 0) & (pc' = WRITE) ;
 
-[] pc = WRITE & writeable != 0 -> 
-  for  x: [1..b] apply +
-  over true -> ((fm_clean[x] > 0 ? 1 / writeable : 0)): fm_clean'[x] = fm_clean[x] & i' = i + 1
+[] pc = WRITE & i < c & writeable != 0 -> ((fm_clean_1 > 0 ? 1 / writeable : 0)): (fm_clean_1' = fm_clean_1 - 1) & (i' = i + 1) + ((fm_clean_2 > 0 ? 1 / writeable : 0)): (fm_clean_2' = fm_clean_2 - 1) & (i' = i + 1) + ((fm_clean_3 > 0 ? 1 / writeable : 0)): (fm_clean_3' = fm_clean_3 - 1) & (i' = i + 1) + ((fm_clean_4 > 0 ? 1 / writeable : 0)): (fm_clean_4' = fm_clean_4 - 1) & (i' = i + 1) + ((fm_clean_5 > 0 ? 1 / writeable : 0)): (fm_clean_5' = fm_clean_5 - 1) & (i' = i + 1) ;
 
-[] pc = WRITE & writeable = 0 -> pc' = FINISH
+[] pc = WRITE & i < c & writeable = 0 -> (pc' = FINISH) ;
 
-[] pc = WRITE & i = c -> pc' = SELECT
+[] pc = WRITE & i = c -> (pc' = SELECT) ;
 
-[] pc = SELECT & (candidates = 0 | !(can_erase)) -> pc' = FINISH
+[] pc = SELECT & (candidates = 0 | !(can_erase)) -> (pc' = FINISH) ;
 
-[] pc = SELECT & candidates != 0 & can_erase -> 
-  for  from: [1..b],to: [1..b] apply +
-  over from != to -> ((cand(from,to) ? 1 / candidates : 0)): fm_clean'[to] = fm_clean[to] - dirty(from) & fm_clean'[from] = p & fm_erase'[from] = fm_erase[from] + 1 & i' = 0 & pc' = WRITE
+[] pc = SELECT & candidates != 0 & can_erase -> ((cand_1_2 ? 1 / candidates : 0)): (fm_clean_2' = fm_clean_2 - dirty_1) & (fm_clean_1' = p) & (fm_erase_1' = fm_erase_1 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_1_3 ? 1 / candidates : 0)): (fm_clean_3' = fm_clean_3 - dirty_1) & (fm_clean_1' = p) & (fm_erase_1' = fm_erase_1 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_1_4 ? 1 / candidates : 0)): (fm_clean_4' = fm_clean_4 - dirty_1) & (fm_clean_1' = p) & (fm_erase_1' = fm_erase_1 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_1_5 ? 1 / candidates : 0)): (fm_clean_5' = fm_clean_5 - dirty_1) & (fm_clean_1' = p) & (fm_erase_1' = fm_erase_1 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_2_1 ? 1 / candidates : 0)): (fm_clean_1' = fm_clean_1 - dirty_2) & (fm_clean_2' = p) & (fm_erase_2' = fm_erase_2 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_2_3 ? 1 / candidates : 0)): (fm_clean_3' = fm_clean_3 - dirty_2) & (fm_clean_2' = p) & (fm_erase_2' = fm_erase_2 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_2_4 ? 1 / candidates : 0)): (fm_clean_4' = fm_clean_4 - dirty_2) & (fm_clean_2' = p) & (fm_erase_2' = fm_erase_2 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_2_5 ? 1 / candidates : 0)): (fm_clean_5' = fm_clean_5 - dirty_2) & (fm_clean_2' = p) & (fm_erase_2' = fm_erase_2 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_3_1 ? 1 / candidates : 0)): (fm_clean_1' = fm_clean_1 - dirty_3) & (fm_clean_3' = p) & (fm_erase_3' = fm_erase_3 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_3_2 ? 1 / candidates : 0)): (fm_clean_2' = fm_clean_2 - dirty_3) & (fm_clean_3' = p) & (fm_erase_3' = fm_erase_3 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_3_4 ? 1 / candidates : 0)): (fm_clean_4' = fm_clean_4 - dirty_3) & (fm_clean_3' = p) & (fm_erase_3' = fm_erase_3 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_3_5 ? 1 / candidates : 0)): (fm_clean_5' = fm_clean_5 - dirty_3) & (fm_clean_3' = p) & (fm_erase_3' = fm_erase_3 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_4_1 ? 1 / candidates : 0)): (fm_clean_1' = fm_clean_1 - dirty_4) & (fm_clean_4' = p) & (fm_erase_4' = fm_erase_4 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_4_2 ? 1 / candidates : 0)): (fm_clean_2' = fm_clean_2 - dirty_4) & (fm_clean_4' = p) & (fm_erase_4' = fm_erase_4 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_4_3 ? 1 / candidates : 0)): (fm_clean_3' = fm_clean_3 - dirty_4) & (fm_clean_4' = p) & (fm_erase_4' = fm_erase_4 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_4_5 ? 1 / candidates : 0)): (fm_clean_5' = fm_clean_5 - dirty_4) & (fm_clean_4' = p) & (fm_erase_4' = fm_erase_4 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_5_1 ? 1 / candidates : 0)): (fm_clean_1' = fm_clean_1 - dirty_5) & (fm_clean_5' = p) & (fm_erase_5' = fm_erase_5 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_5_2 ? 1 / candidates : 0)): (fm_clean_2' = fm_clean_2 - dirty_5) & (fm_clean_5' = p) & (fm_erase_5' = fm_erase_5 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_5_3 ? 1 / candidates : 0)): (fm_clean_3' = fm_clean_3 - dirty_5) & (fm_clean_5' = p) & (fm_erase_5' = fm_erase_5 + 1) & (i' = 0) & (pc' = WRITE) + ((cand_5_4 ? 1 / candidates : 0)): (fm_clean_4' = fm_clean_4 - dirty_5) & (fm_clean_5' = p) & (fm_erase_5' = fm_erase_5 + 1) & (i' = 0) & (pc' = WRITE) ;
 
-[] pc = FINISH -> true
+[] pc = FINISH -> true ;
 
 endmodule
 
@@ -64,24 +58,100 @@ endmodule
 // Formulae:
 // -----
 
-formula writeable = 
-  for  x: [1..b] apply +
-  over true -> (fm_clean[x] != 0 ? 1 : 0)
+formula writeable = (fm_clean_1 != 0 ? 1 : 0) + (fm_clean_2 != 0 ? 1 : 0) + (fm_clean_3 != 0 ? 1 : 0) + (fm_clean_4 != 0 ? 1 : 0) + (fm_clean_5 != 0 ? 1 : 0) ;
 
-formula dirty(x:[1..b]) = p - fm_clean[x]
+formula dirty_1 = p - fm_clean_1 ;
 
-formula cand(x:[1..b],y:[1..b]) = x != y & dirty(x) > 0 & fm_clean[x] >= dirty(x)
+formula dirty_2 = p - fm_clean_2 ;
 
-formula candidates = 
-  for  x: [1..b],y: [1..b] apply +
-  over x != y -> (cand(x,y) ? 1 : 0)
+formula dirty_3 = p - fm_clean_3 ;
 
-formula can_erase = 
-  for  x: [1..b] apply &
-  over true -> fm_erase[x] < w
+formula dirty_4 = p - fm_clean_4 ;
 
-formula diff(x:[1..b],y:[1..b]) = fm_erase[x] - fm_erase[y]
+formula dirty_5 = p - fm_clean_5 ;
 
-formula toobig = 
-  for  x: [1..b],y: [1..b] apply |
-  over x != y -> diff(x,y) >= MAXDIFF
+formula cand_1_2 = dirty_1 > 0 & fm_clean_2 >= dirty_1 ;
+
+formula cand_1_3 = dirty_1 > 0 & fm_clean_3 >= dirty_1 ;
+
+formula cand_1_4 = dirty_1 > 0 & fm_clean_4 >= dirty_1 ;
+
+formula cand_1_5 = dirty_1 > 0 & fm_clean_5 >= dirty_1 ;
+
+formula cand_2_1 = dirty_2 > 0 & fm_clean_1 >= dirty_2 ;
+
+formula cand_2_3 = dirty_2 > 0 & fm_clean_3 >= dirty_2 ;
+
+formula cand_2_4 = dirty_2 > 0 & fm_clean_4 >= dirty_2 ;
+
+formula cand_2_5 = dirty_2 > 0 & fm_clean_5 >= dirty_2 ;
+
+formula cand_3_1 = dirty_3 > 0 & fm_clean_1 >= dirty_3 ;
+
+formula cand_3_2 = dirty_3 > 0 & fm_clean_2 >= dirty_3 ;
+
+formula cand_3_4 = dirty_3 > 0 & fm_clean_4 >= dirty_3 ;
+
+formula cand_3_5 = dirty_3 > 0 & fm_clean_5 >= dirty_3 ;
+
+formula cand_4_1 = dirty_4 > 0 & fm_clean_1 >= dirty_4 ;
+
+formula cand_4_2 = dirty_4 > 0 & fm_clean_2 >= dirty_4 ;
+
+formula cand_4_3 = dirty_4 > 0 & fm_clean_3 >= dirty_4 ;
+
+formula cand_4_5 = dirty_4 > 0 & fm_clean_5 >= dirty_4 ;
+
+formula cand_5_1 = dirty_5 > 0 & fm_clean_1 >= dirty_5 ;
+
+formula cand_5_2 = dirty_5 > 0 & fm_clean_2 >= dirty_5 ;
+
+formula cand_5_3 = dirty_5 > 0 & fm_clean_3 >= dirty_5 ;
+
+formula cand_5_4 = dirty_5 > 0 & fm_clean_4 >= dirty_5 ;
+
+formula candidates = (cand_1_2 ? 1 : 0) + (cand_1_3 ? 1 : 0) + (cand_1_4 ? 1 : 0) + (cand_1_5 ? 1 : 0) + (cand_2_1 ? 1 : 0) + (cand_2_3 ? 1 : 0) + (cand_2_4 ? 1 : 0) + (cand_2_5 ? 1 : 0) + (cand_3_1 ? 1 : 0) + (cand_3_2 ? 1 : 0) + (cand_3_4 ? 1 : 0) + (cand_3_5 ? 1 : 0) + (cand_4_1 ? 1 : 0) + (cand_4_2 ? 1 : 0) + (cand_4_3 ? 1 : 0) + (cand_4_5 ? 1 : 0) + (cand_5_1 ? 1 : 0) + (cand_5_2 ? 1 : 0) + (cand_5_3 ? 1 : 0) + (cand_5_4 ? 1 : 0) ;
+
+formula can_erase = fm_erase_1 < w & fm_erase_2 < w & fm_erase_3 < w & fm_erase_4 < w & fm_erase_5 < w ;
+
+formula diff_1_2 = fm_erase_1 - fm_erase_2 ;
+
+formula diff_1_3 = fm_erase_1 - fm_erase_3 ;
+
+formula diff_1_4 = fm_erase_1 - fm_erase_4 ;
+
+formula diff_1_5 = fm_erase_1 - fm_erase_5 ;
+
+formula diff_2_1 = fm_erase_2 - fm_erase_1 ;
+
+formula diff_2_3 = fm_erase_2 - fm_erase_3 ;
+
+formula diff_2_4 = fm_erase_2 - fm_erase_4 ;
+
+formula diff_2_5 = fm_erase_2 - fm_erase_5 ;
+
+formula diff_3_1 = fm_erase_3 - fm_erase_1 ;
+
+formula diff_3_2 = fm_erase_3 - fm_erase_2 ;
+
+formula diff_3_4 = fm_erase_3 - fm_erase_4 ;
+
+formula diff_3_5 = fm_erase_3 - fm_erase_5 ;
+
+formula diff_4_1 = fm_erase_4 - fm_erase_1 ;
+
+formula diff_4_2 = fm_erase_4 - fm_erase_2 ;
+
+formula diff_4_3 = fm_erase_4 - fm_erase_3 ;
+
+formula diff_4_5 = fm_erase_4 - fm_erase_5 ;
+
+formula diff_5_1 = fm_erase_5 - fm_erase_1 ;
+
+formula diff_5_2 = fm_erase_5 - fm_erase_2 ;
+
+formula diff_5_3 = fm_erase_5 - fm_erase_3 ;
+
+formula diff_5_4 = fm_erase_5 - fm_erase_4 ;
+
+formula toobig = diff_1_2 >= MAXDIFF | diff_1_3 >= MAXDIFF | diff_1_4 >= MAXDIFF | diff_1_5 >= MAXDIFF | diff_2_1 >= MAXDIFF | diff_2_3 >= MAXDIFF | diff_2_4 >= MAXDIFF | diff_2_5 >= MAXDIFF | diff_3_1 >= MAXDIFF | diff_3_2 >= MAXDIFF | diff_3_4 >= MAXDIFF | diff_3_5 >= MAXDIFF | diff_4_1 >= MAXDIFF | diff_4_2 >= MAXDIFF | diff_4_3 >= MAXDIFF | diff_4_5 >= MAXDIFF | diff_5_1 >= MAXDIFF | diff_5_2 >= MAXDIFF | diff_5_3 >= MAXDIFF | diff_5_4 >= MAXDIFF ;

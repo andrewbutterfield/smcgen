@@ -545,14 +545,14 @@ cmd2 = Cmd [] (pc .= _WRITE .& i .< c .& writeable .!= _0)
                 "+"
                 true
                 ( P (fm_clean[x] .> _0 .? _1./writeable .: _0)
-                    ( fm_clean'[x] .:= fm_clean[x]
+                    ( fm_clean'[x] .:= fm_clean[x] .- _1
                       .& i' .:= (i .+ _1 ) ) ) )
 \end{code}
 \begin{prism}
 [] pc=WRITE & i<c & writeable=0 -> (pc'=FINISH);
 \end{prism}
 \begin{code}
-cmd3 = Cmd [] (pc .= _WRITE .& writeable .= _0) (pc' .:= _FINISH)
+cmd3 = Cmd [] (pc .= _WRITE .& i .< c .& writeable .= _0) (pc' .:= _FINISH)
 \end{code}
 \begin{prism}
 [] pc=WRITE & i=c -> (pc'=SELECT);
@@ -856,25 +856,38 @@ declVV i btyp ns = Var (i ++ concat (map pvalue2str ns)) btyp
 pvalue2str n = '_' : show n
 \end{code}
 
+\newpage
 \subsubsection{Compiling Extended Commands}
 
-We assume that \texttt{for}-constructs occur
-only in the command body,
-and only at the top level.
+\WF{For-Commands}
+{The \texttt{for}-constructs occur
+only in the update expression,
+but could be at any level within function/operator applications.
+Currently we assume they are not nested.}
+
 \begin{code}
 x2sCommand :: [Ident] -> [Ident] -> (Ident -> Int) -> Command -> Command
-x2sCommand pfnames fxparnms cval (Cmd synch cgrd (AF adcls op bgrd body))
- = let
-    (pnms,variants) = genParameterVariants cval adcls
-    instfs = map (aget . zip pnms) variants
-    grds' =  map (exprEval fxparnms cval . specialiseExpr' pnms bgrd) instfs
-    bodies'  =  map (specialiseFormCall pfnames . specialiseExpr' pnms body)
+x2sCommand pfnames fxparnms cval (Cmd synch cgrd update)
+  = Cmd synch cgrd $ x2sUpdate pfnames fxparnms cval update
+
+
+x2sUpdate pfnames fxparnms cval (AF adcls op bgrd body)
+  = x2sForCmd pfnames fxparnms cval adcls op bgrd body
+x2sUpdate pfnames fxparnms cval (F nm upds)
+  = F nm $ map (x2sUpdate pfnames fxparnms cval) upds
+x2sUpdate pfnames fxparnms cval cmd  =  cmd
+
+x2sForCmd pfnames fxparnms cval adcls op bgrd body
+  = let
+      (pnms,variants) = genParameterVariants cval adcls
+      instfs = map (aget . zip pnms) variants
+      grds' = map (exprEval fxparnms cval . specialiseExpr' pnms bgrd) instfs
+      bodies' = map (specialiseFormCall pfnames . specialiseExpr' pnms body)
                     instfs
-    stuff = zip grds' bodies'
-    bodies'' = map snd $ filter (theBool . fst) stuff
-    theBool (B b) = b
-   in Cmd synch cgrd $ F op bodies''
-x2sCommand pfnames fxparnms cval cmd = cmd
+      stuff = zip grds' bodies'
+      bodies'' = map snd $ filter (theBool . fst) stuff
+      theBool (B b) = b
+    in F op bodies''
 
 specialiseExpr' pnms e instf  =  specialiseExpr pnms instf e
 \end{code}
