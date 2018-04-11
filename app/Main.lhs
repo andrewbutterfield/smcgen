@@ -8,7 +8,8 @@ LICENSE: BSD3, see file LICENSE at smcgen root
 module Main where
 import Hack
 import Abs1
+import FlashA1
 
 main :: IO ()
-main = sequence_ $ map abs1 [2..8]
+main = sequence_ $ map (abs1 "FlashA1" flashA1) [2..8]
 \end{code}
