@@ -2,3 +2,10 @@
 .stack-work
 MAIN.pdf
 
+MAIN.aux
+MAIN.bbl
+MAIN.blg
+MAIN.fdb_latexmk
+MAIN.fls
+MAIN.log
+MAIN.toc
